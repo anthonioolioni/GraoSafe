@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GraoSafe — Monitoramento de grãos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef3f0; --card: #ffffff; --txt: #14231b; --muted: #64756b; --borda: #e2e9e4;
+    --verde: #15803d; --verde-bg: #dcfce7; --verde-glow: #22c55e;
+    --amarelo: #a16207; --amarelo-bg: #fef3c7; --amarelo-glow: #f59e0b;
+    --vermelho: #b91c1c; --vermelho-bg: #fee2e2; --vermelho-glow: #ef4444;
+    --marca: #166534; --marca2: #22a05b; --roxo: #6d28d9; --roxo-bg: #ede9fe;
+    --sombra: 0 1px 2px rgba(16,40,28,.06), 0 8px 24px rgba(16,40,28,.07);
+    --raio: 20px;
+    --campo: #ffffff; --suave: #f3f6f4; --trilho: #e8eeea; --tracejado: #cdd8d1; --tag: #eef1ef; --glow: #d7efe0;
+    --azul-bg: #dbeafe; --azul-txt: #1d4ed8; --azul-borda: #93c5fd; --marca-txt: #166534;
+    --t-verde: #14532d; --t-amarelo: #713f12; --t-vermelho: #7f1d1d; --t-roxo: #4c1d95;
+    --hdr: linear-gradient(135deg, #0b3a24 0%, #14603a 55%, #1f8a50 100%);
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1310; --card: #14201a; --txt: #e6f0ea; --muted: #93a69b; --borda: #27372d;
+    --verde: #4ade80; --verde-bg: #11331f; --amarelo: #fbbf24; --amarelo-bg: #392d0c;
+    --vermelho: #f87171; --vermelho-bg: #3c1616; --roxo-bg: #2a1d52;
+    --sombra: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    --campo: #1b2a22; --suave: #1b2a22; --trilho: #26372d; --tracejado: #3a4f42; --tag: #223229; --glow: #12301f;
+    --azul-bg: #1e3a5f; --azul-txt: #93c5fd; --azul-borda: #2f5d99; --marca-txt: #86efac;
+    --t-verde: #bbf7d0; --t-amarelo: #fde68a; --t-vermelho: #fecaca; --t-roxo: #ddd6fe;
+    --hdr: linear-gradient(135deg, #051a0e 0%, #0b3322 55%, #124d2f 100%);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; color: var(--txt); min-height: 100vh;
+         background: radial-gradient(1000px 500px at 100% -10%, var(--glow) 0%, transparent 60%), var(--bg);
+         font: 16px/1.5 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+  /* ---------- Cabeçalho ---------- */
+  header { position: relative; overflow: hidden; color: #fff; padding: 28px 0 88px;
+           background: var(--hdr); }
+  header::before { content: ""; position: absolute; width: 420px; height: 420px; right: -120px; top: -180px;
+                   background: radial-gradient(circle, rgba(255,255,255,.22), transparent 65%); }
+  header::after { content: ""; position: absolute; width: 300px; height: 300px; left: -100px; bottom: -190px;
+                  background: radial-gradient(circle, rgba(250,204,21,.25), transparent 65%); }
+  header .wrap { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
+  .marca { display: flex; align-items: center; gap: 14px; }
+  .logo { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; font-size: 1.7rem;
+          background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.3); backdrop-filter: blur(6px); }
+  h1 { margin: 0; font-size: 1.7rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+  header p { margin: 3px 0 0; opacity: .85; font-size: .95rem; }
+  .status { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .ao-vivo { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; font-size: .85rem; font-weight: 500;
+             background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.25); }
+  .ponto { width: 9px; height: 9px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 0 rgba(74,222,128,.7); animation: pulso 1.8s infinite; }
+  .pausado .ponto { background: #fbbf24; animation: none; }
+  @keyframes pulso { 70% { box-shadow: 0 0 0 9px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
+
+  /* ---------- Botões e campos ---------- */
+  button, select, input[type=text] { font: inherit; font-size: .92rem; padding: 10px 16px; border-radius: 12px; border: 1px solid var(--borda);
+                                     background: var(--campo); color: var(--txt); transition: transform .12s, box-shadow .12s, background .12s; }
+  button { cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;
+           background: linear-gradient(135deg, var(--marca), var(--marca2)); color: #fff; border-color: transparent;
+           box-shadow: 0 4px 12px rgba(22,101,52,.25); }
+  button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(22,101,52,.3); }
+  button:active:not(:disabled) { transform: translateY(0); }
+  button.sec { background: var(--campo); color: var(--marca-txt); border-color: var(--borda); box-shadow: none; }
+  button.sec:hover:not(:disabled) { background: var(--suave); box-shadow: none; }
+  button.perigo { background: linear-gradient(135deg, #b91c1c, #ef4444); box-shadow: 0 4px 12px rgba(185,28,28,.28); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  #btn-tema { width: 42px; height: 42px; padding: 0; justify-content: center; border-radius: 50%; font-size: 1.15rem; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.3); box-shadow: none; color: #fff; }
+  #btn-tema:hover:not(:disabled) { background: rgba(255,255,255,.28); box-shadow: none; }
+  header button { background: rgba(255,255,255,.95); color: #166534; box-shadow: none; }
+  select { cursor: pointer; padding-right: 10px; }
+  button.perigo.ativo { animation: anel 1.4s infinite; }
+  @keyframes anel { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,.6); } 100% { box-shadow: 0 0 0 14px rgba(239,68,68,0); } }
+  button.sec.destaque { border-color: var(--verde-glow); color: var(--verde); background: var(--verde-bg); }
+
+  /* ---------- Aviso de falha ativa ---------- */
+  .faixa-falha { display: flex; align-items: center; gap: 14px; padding: 16px 20px; margin-bottom: 20px; border-radius: var(--raio); color: #fff;
+                 background: linear-gradient(135deg, #991b1b, #ef4444, #991b1b); background-size: 200% 100%;
+                 box-shadow: 0 10px 30px rgba(185,28,28,.35); animation: desce .35s ease, faixa 3s linear infinite; }
+  .faixa-falha[hidden] { display: none; }
+  .faixa-falha strong { display: block; font-size: 1.05rem; }
+  .faixa-falha span#faixa-texto { font-size: .9rem; opacity: .92; }
+  .faixa-falha .chama { font-size: 1.9rem; animation: chama .7s ease-in-out infinite alternate; }
+  @keyframes desce { from { opacity: 0; transform: translateY(-14px); } }
+  @keyframes faixa { to { background-position: -200% 0; } }
+  @keyframes chama { from { transform: scale(1) rotate(-6deg); } to { transform: scale(1.25) rotate(6deg); } }
+  .tag-falha { display: none; align-items: center; gap: 8px; margin-bottom: 14px; padding: 8px 12px; border-radius: 12px; font-size: .78rem; font-weight: 700; letter-spacing: .03em;
+               color: #fff; background: linear-gradient(135deg, #b91c1c, #ef4444); }
+  .silo.em-falha .tag-falha { display: flex; animation: desce .3s ease; }
+  .silo.em-falha { animation: tremor 2.2s ease-in-out infinite; outline: 2px solid rgba(239,68,68,.55); }
+  @keyframes tremor { 0%, 88%, 100% { transform: none; } 90% { transform: translateX(-3px); } 93% { transform: translateX(3px); } 96% { transform: translateX(-2px); } }
+  /* ---------- Sensor ESP32 (Serial Monitor) ---------- */
+  .fonte { display: inline-block; margin-top: 4px; padding: 2px 9px; border-radius: 999px; font-size: .72rem; font-weight: 600; background: var(--tag); color: var(--muted); }
+  .fonte.real { background: var(--azul-bg); color: var(--azul-txt); }
+  .fluxo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; font-size: .85rem; font-weight: 600; }
+  .fluxo .no { padding: 8px 12px; border-radius: 12px; background: var(--suave); border: 1px solid var(--borda); }
+  .fluxo .no.on { background: var(--azul-bg); border-color: var(--azul-borda); color: var(--azul-txt); }
+  .fluxo .seta { color: var(--muted); }
+  details { margin-top: 12px; } summary { cursor: pointer; font-weight: 600; font-size: .92rem; }
+  details ol { margin: 8px 0 0; padding-left: 20px; font-size: .88rem; color: var(--muted); }
+  textarea { width: 100%; min-height: 90px; margin-top: 8px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--borda); background: var(--campo); color: var(--txt); font: .82rem ui-monospace, Consolas, monospace; }
+  :focus-visible { outline: 3px solid rgba(34,160,91,.5); outline-offset: 2px; }
+
+  main { margin-top: -60px; position: relative; z-index: 2; padding-bottom: 8px; }
+  section, .silo { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra); }
+  section { padding: 22px; margin-bottom: 20px; }
+  h2 { margin: 0; font-size: 1.1rem; font-weight: 700; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: .85rem; margin: 2px 0 0; }
+  .barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .barra label { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: .88rem; font-weight: 500; }
+  .cab-sec { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .nota { font-size: .82rem; color: var(--muted); margin: 10px 0 0; }
+  .vazio { color: var(--muted); font-style: italic; }
+
+  /* ---------- Cartões dos silos ---------- */
+  .silos { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-bottom: 20px; }
+  .silo { position: relative; overflow: hidden; padding: 22px; min-width: 0; transition: box-shadow .3s; }
+  .silo::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 5px; background: var(--verde-glow); transition: background .4s; }
+  .silo.amarelo::before { background: var(--amarelo-glow); } .silo.vermelho::before { background: var(--vermelho-glow); }
+  .silo.vermelho { box-shadow: 0 0 0 2px rgba(239,68,68,.35), 0 12px 32px rgba(239,68,68,.18); }
+  .silo-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 18px; }
+  .silo h3 { margin: 0; font-size: 1.05rem; font-weight: 700; }
+  .silo .cultura { font-size: .8rem; color: var(--muted); }
+  .selo { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-weight: 700; font-size: .75rem; letter-spacing: .04em; white-space: nowrap; }
+  .selo::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .r-verde { color: var(--verde); background: var(--verde-bg); }
+  .r-amarelo { color: var(--amarelo); background: var(--amarelo-bg); }
+  .r-vermelho { color: var(--vermelho); background: var(--vermelho-bg); }
+  .medidas { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .medida .rot { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--muted); font-weight: 500; }
+  .medida .rot svg { width: 16px; height: 16px; }
+  .medida .num { font-size: 2.2rem; font-weight: 800; letter-spacing: -.03em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .medida .num small { font-size: .95rem; font-weight: 600; color: var(--muted); margin-left: 2px; letter-spacing: 0; }
+  .meter { height: 6px; border-radius: 6px; background: var(--trilho); margin-top: 8px; overflow: hidden; }
+  .meter div { height: 100%; width: 0; border-radius: 6px; background: var(--verde-glow); transition: width .5s, background .4s; }
+  .amarelo .meter div { background: var(--amarelo-glow); } .vermelho .meter div { background: var(--vermelho-glow); }
+  .silo .hora { display: flex; align-items: center; gap: 6px; margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--borda); color: var(--muted); font-size: .8rem; }
+
+  /* ---------- Gráfico + alertas ---------- */
+  .duas { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); gap: 20px; margin-bottom: 20px; }
+  .duas section { margin: 0; }
+  .grafico { position: relative; height: 340px; }
+  #alertas { list-style: none; margin: 0; padding: 0; max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  #alertas li { display: flex; gap: 10px; padding: 10px 12px; border-radius: 12px; font-size: .88rem; line-height: 1.35; overflow-wrap: anywhere; animation: entra .3s ease; }
+  #alertas li b { flex: none; font-variant-numeric: tabular-nums; font-weight: 700; opacity: .8; }
+  #alertas li.verde { background: var(--verde-bg); color: var(--t-verde); }
+  #alertas li.amarelo { background: var(--amarelo-bg); color: var(--t-amarelo); }
+  #alertas li.vermelho { background: var(--vermelho-bg); color: var(--t-vermelho); }
+  #alertas li.ia { background: var(--roxo-bg); color: var(--t-roxo); }
+  #alertas li.vazio { background: var(--suave); color: var(--muted); font-style: normal; }
+  @keyframes entra { from { opacity: 0; transform: translateY(-6px); } }
+
+  /* ---------- IA ---------- */
+  .ia-topo { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .ia-icone { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 1.3rem; background: var(--roxo-bg); }
+  #ia-aviso { background: var(--suave); border-radius: 14px; padding: 14px 16px; font-size: .9rem; color: var(--muted); font-style: normal; }
+  #ia-url { flex: 1 1 280px; min-width: 0; }
+  input[type=file] { padding: 7px 10px; font-size: .85rem; max-width: 100%; min-width: 0; }
+  .barra label { min-width: 0; max-width: 100%; }
+  img, canvas, textarea { max-width: 100%; }
+  @media (max-width: 640px) {
+    .barra label:has(input[type=file]) { flex-wrap: wrap; width: 100%; }
+    input[type=file] { width: 100%; }
+    button, select, input[type=text] { min-height: 44px; }   /* alvo de toque confortável */
+    .cab-sec > label { width: 100%; } .cab-sec > label select { flex: 1; }
+  }
+  .ia-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-top: 16px; }
+  #ia-visual { min-height: 160px; border: 2px dashed var(--tracejado); background: var(--suave); border-radius: 16px; display: flex; align-items: center; justify-content: center; overflow: hidden; max-width: 100%; }
+  #ia-visual canvas, #ia-visual img { max-width: 100%; height: auto; border-radius: 12px; }
+  .prob { margin-bottom: 14px; }
+  .prob .topo { display: flex; justify-content: space-between; font-size: .88rem; gap: 8px; margin-bottom: 5px; font-weight: 500; }
+  .prob .fundo { height: 12px; background: var(--trilho); border-radius: 12px; overflow: hidden; }
+  .prob .fundo div { height: 100%; background: linear-gradient(90deg, var(--marca), var(--marca2)); width: 0; border-radius: 12px; transition: width .25s; }
+  .prob.ruim .fundo div { background: linear-gradient(90deg, #b91c1c, #ef4444); }
+  #ia-msg { margin: 10px 0 0; font-size: .9rem; color: var(--muted); }
+  #ia-msg.erro { color: var(--vermelho); font-weight: 600; }
+
+  .aviso { display: flex; gap: 10px; align-items: flex-start; justify-content: center; text-align: left; max-width: 760px; margin: 0 auto; }
+  footer { text-align: center; color: var(--muted); font-size: .85rem; padding: 18px 20px 32px; }
+
+  @media (max-width: 900px) { .duas { grid-template-columns: 1fr; } }
+  @media (max-width: 520px) {
+    header { padding-bottom: 80px; } h1 { font-size: 1.45rem; }
+    section { padding: 16px; } .medida .num { font-size: 1.9rem; } .grafico { height: 280px; }
+    .barra button, .barra label { flex: 1 1 100%; justify-content: center; } .barra label select { flex: 1; }
+  }
+</style>
+<script>
+  // aplica o tema salvo (ou o do sistema) antes de desenhar a página, para não piscar
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem('graosafe_tema'); } catch (e) {}
+    if (!t) t = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="marca">
+      <div class="logo" aria-hidden="true">🌾</div>
+      <div>
+        <h1>GraoSafe</h1>
+        <p>Monitoramento de armazenagem de grãos — Rondonópolis, MT</p>
+      </div>
+    </div>
+    <div class="status">
+      <span class="ao-vivo" id="ao-vivo"><span class="ponto"></span><span id="atualizado">Aguardando leitura…</span></span>
+      <button id="btn-tema" type="button" aria-label="Alternar tema claro/escuro" title="Alternar tema">🌙</button>
+      <button id="btn-pausa" type="button">⏸ Pausar</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div id="faixa-falha" class="faixa-falha" role="alert" aria-live="assertive" hidden>
+    <span class="chama" aria-hidden="true">🔥</span>
+    <div>
+      <strong>Falha de ventilação ativa</strong>
+      <span id="faixa-texto"></span>
+    </div>
+  </div>
+
+  <section>
+    <div class="barra">
+      <label>Intervalo
+        <select id="sel-intervalo">
+          <option value="2000">2 s</option>
+          <option value="5000" selected>5 s</option>
+          <option value="10000">10 s</option>
+        </select>
+      </label>
+      <label>Silo para falha
+        <select id="sel-falha"></select>
+      </label>
+      <button id="btn-falha" type="button" class="perigo">🔥 Simular falha de ventilação</button>
+      <button id="btn-normal" type="button" class="sec">✅ Voltar ao normal</button>
+      <button id="btn-csv" type="button" class="sec">⬇ Baixar CSV</button>
+    </div>
+    <p class="nota" id="nota-sim">Cada leitura avança 10 minutos no tempo simulado. Relógio simulado: <strong id="relogio-sim">—</strong></p>
+  </section>
+
+  <div class="silos" id="silos"></div>
+
+  <section id="secao-sensor">
+    <div class="cab-sec">
+      <div>
+        <h2>📡 Sensor real (ESP32 no Wokwi)</h2>
+        <p class="sub">Cole abaixo o que o Serial Monitor do Wokwi imprime: o Silo A passa a mostrar os dados do sensor.</p>
+      </div>
+    </div>
+    <div class="fluxo" aria-label="Caminho dos dados">
+      <span class="no" id="no-esp">ESP32 + DHT22 (Wokwi)</span><span class="seta">→</span>
+      <span class="no" id="no-serial">Serial Monitor (CSV)</span><span class="seta">→</span>
+      <span class="no" id="no-painel">Este painel</span>
+    </div>
+    <textarea id="serial-texto" placeholder="timestamp_ms,silo,temperatura,umidade,risco&#10;12000,A,26.0,55.0,verde"></textarea>
+    <div class="barra" style="margin-top:10px">
+      <button type="button" id="btn-importar">Importar leituras</button>
+      <button type="button" class="sec" id="btn-voltar-sim" disabled>Voltar à simulação</button>
+    </div>
+    <p class="nota" id="sensor-status">Nenhuma leitura do sensor importada — o Silo A está simulado.</p>
+  </section>
+
+  <div class="duas">
+    <section>
+      <div class="cab-sec">
+        <div>
+          <h2>Temperatura e umidade</h2>
+          <p class="sub">Últimas 60 leituras (horário simulado)</p>
+        </div>
+        <label class="barra" style="gap:8px">Silo <select id="sel-grafico"></select></label>
+      </div>
+      <div class="grafico"><canvas id="grafico" aria-label="Gráfico de temperatura e umidade"></canvas></div>
+    </section>
+
+    <section>
+      <div class="cab-sec" style="margin-bottom:12px">
+        <div>
+          <h2>Alertas</h2>
+          <p class="sub">Quando o risco muda de nível</p>
+        </div>
+      </div>
+      <ul id="alertas"><li class="vazio" id="alertas-vazio">Nenhum alerta ainda.</li></ul>
+    </section>
+  </div>
+
+  <section id="secao-ia">
+    <div class="ia-topo">
+      <div class="ia-icone" aria-hidden="true">🤖</div>
+      <div>
+        <h2>Checagem do grão (IA)</h2>
+        <p class="sub">Classifique fotos dos grãos com um modelo do Teachable Machine</p>
+      </div>
+    </div>
+    <div id="ia-aviso">
+      Nenhum modelo carregado. Para usar: acesse <strong>teachablemachine.withgoogle.com</strong> → Projeto de imagens →
+      crie 2 classes (<em>Grão saudável</em> e <em>Grão mofado/ardido</em>) com cerca de 30 fotos cada → <em>Treinar</em> →
+      <em>Exportar modelo</em> → <em>Upload (nuvem)</em> → copie o link e cole abaixo.
+    </div>
+    <div class="barra" style="margin-top:14px">
+      <input type="text" id="ia-url" placeholder="https://teachablemachine.withgoogle.com/models/XXXX/" aria-label="URL do modelo">
+      <button id="btn-modelo" type="button">Carregar modelo</button>
+    </div>
+    <div class="barra" style="margin-top:10px">
+      <button id="btn-cam" type="button" class="sec" disabled>📷 Ligar webcam</button>
+      <label>ou enviar foto
+        <input type="file" id="ia-arquivo" accept="image/*" disabled>
+      </label>
+    </div>
+    <p id="ia-msg"></p>
+    <div class="ia-grid">
+      <div id="ia-visual"><span class="vazio">A imagem aparece aqui</span></div>
+      <div id="ia-barras"></div>
+    </div>
+    <p class="nota">Se a classe "mofado/ardido" passar de 70 %, um alerta aparece no painel.</p>
+  </section>
+
+  <p class="nota aviso">
+    <span aria-hidden="true">⚠️</span>
+    <span>Os limites de risco usados aqui (verde, amarelo e vermelho) são <strong>simplificados, para fins didáticos</strong>, e não representam uma norma técnica de armazenagem.</span>
+  </p>
+</main>
+
+<footer>Projeto acadêmico — Computação Contemporânea e Inteligência Artificial</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!-- Teachable Machine (carregadas sob demanda ao clicar em "Carregar modelo") -->
+<script>
+// =====================================================================
+// CONFIGURAÇÃO (pode mexer à vontade)
+// =====================================================================
+const CONFIG = {
+  // Limites de risco (didáticos)
+  tempAtencao: 28,   // °C: a partir daqui = amarelo
+  tempPerigo: 32,    // °C: acima daqui = vermelho
+  umidAtencao: 65,   // % UR: a partir daqui = amarelo
+  umidPerigo: 75,    // % UR: acima daqui = vermelho
+
+  minutosPorLeitura: 10,   // quanto o relógio simulado anda a cada leitura
+  maxPontosGrafico: 60,
+  maxAlertas: 20,
+  limiarIA: 0.70,          // probabilidade mínima para alertar "mofado"
+
+  // Modelo da simulação (a MESMA lógica do script que gerou dados/exemplo_graosafe.csv)
+  tempMedia: 27, tempAmplitude: 4,   // ciclo diário: ~23 °C (madrugada) a ~31 °C (tarde)
+  horaPico: 15,                      // hora mais quente do dia
+  umidBase: 55, umidPorGrau: 2,      // umidade cai 2 pontos a cada +1 °C
+  ruidoTemp: 0.4, ruidoUmid: 1.5,
+  falhaTemp: 7, falhaUmid: 18,       // efeito máximo da falha de ventilação
+  falhaSobe: 0.12, falhaDesce: 0.25  // velocidade de subida/descida da falha por leitura
+};
+
+const SILOS = [
+  { id: 'A', nome: 'Silo A — Soja',  dTemp: 0.0, dUmid: 0.0 },
+  { id: 'B', nome: 'Silo B — Milho', dTemp: -0.5, dUmid: 2.0 },
+  { id: 'C', nome: 'Silo C — Soja',  dTemp: 0.8, dUmid: 3.0 }   // mais quente e úmido
+];
+
+const NOMES_RISCO = { verde: 'SEGURO', amarelo: 'ATENÇÃO', vermelho: 'PERIGO' };
+const ORDEM = { verde: 0, amarelo: 1, vermelho: 2 };
+
+// Regra de risco (igual à do ESP32)
+function calcularRisco(t, u) {
+  if (t > CONFIG.tempPerigo || u > CONFIG.umidPerigo) return 'vermelho';
+  if (t >= CONFIG.tempAtencao || u >= CONFIG.umidAtencao) return 'amarelo';
+  return 'verde';
+}
+
+// =====================================================================
+// ESTADO
+// =====================================================================
+const estado = {
+  minutoSim: 6 * 60,          // começa às 06:00 do dia simulado
+  leituras: [],               // todas as leituras da sessão
+  porSilo: {},                // últimas leituras por silo (para o gráfico)
+  ultimoRisco: {},
+  falha: {},                  // { id: { ativa: bool, nivel: 0..1 } }
+  pausado: false,
+  timer: null,
+  inicioSim: new Date(new Date().setHours(0, 0, 0, 0))
+};
+SILOS.forEach(s => { estado.porSilo[s.id] = []; estado.falha[s.id] = { ativa: false, nivel: 0 }; });
+
+const $ = id => document.getElementById(id);
+const fmt = n => n.toFixed(1).replace('.', ',');
+const pad = n => String(n).padStart(2, '0');
+
+function dataSim(minutos) { return new Date(estado.inicioSim.getTime() + minutos * 60000); }
+function textoDataSim(d) {  // "AAAA-MM-DD HH:MM:SS" (formato do CSV)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+function ruido(amp) { return (Math.random() * 2 - 1) * amp; }
+
+// =====================================================================
+// SIMULAÇÃO
+// =====================================================================
+function gerarLeitura(silo, minuto) {
+  const hora = (minuto / 60) % 24;
+  const f = estado.falha[silo.id];
+  // atualiza o nível da falha (sobe devagar enquanto ativa, desce depois)
+  f.nivel = f.ativa ? Math.min(1, f.nivel + CONFIG.falhaSobe) : Math.max(0, f.nivel - CONFIG.falhaDesce);
+
+  const ciclo = Math.sin(2 * Math.PI * (hora - CONFIG.horaPico + 6) / 24); // pico às 15h
+  let temp = CONFIG.tempMedia + CONFIG.tempAmplitude * ciclo + silo.dTemp + ruido(CONFIG.ruidoTemp) + CONFIG.falhaTemp * f.nivel;
+  let umid = CONFIG.umidBase - CONFIG.umidPorGrau * (temp - CONFIG.tempMedia - CONFIG.falhaTemp * f.nivel)
+             + silo.dUmid + ruido(CONFIG.ruidoUmid) + CONFIG.falhaUmid * f.nivel;
+  temp = Math.round(temp * 10) / 10;
+  umid = Math.min(100, Math.max(0, Math.round(umid * 10) / 10));
+  const d = dataSim(minuto);
+  return { timestamp: textoDataSim(d), hora: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+           silo: silo.id, temperatura: temp, umidade: umid, risco: calcularRisco(temp, umid) };
+}
+
+function passo() {
+  SILOS.forEach(silo => {
+    if (liveAtivo(silo.id)) return;           // sensor real mandando dados: não simula este silo
+    const l = gerarLeitura(silo, estado.minutoSim);
+    estado.leituras.push(l);
+    const lista = estado.porSilo[silo.id];
+    lista.push(l);
+    if (lista.length > CONFIG.maxPontosGrafico) lista.shift();
+    verificarAlerta(silo, l);
+    atualizarCartao(silo, l);
+  });
+  const d = dataSim(estado.minutoSim);
+  $('relogio-sim').textContent = `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  estado.minutoSim += CONFIG.minutosPorLeitura;
+  const agora = new Date();
+  $('atualizado').textContent = `Atualizado às ${pad(agora.getHours())}:${pad(agora.getMinutes())}:${pad(agora.getSeconds())}`;
+  atualizarGrafico();
+  atualizarStatusSensor();
+}
+
+function iniciarTimer() {
+  clearInterval(estado.timer);
+  if (!estado.pausado) estado.timer = setInterval(passo, Number($('sel-intervalo').value));
+}
+
+// =====================================================================
+// INTERFACE
+// =====================================================================
+function montarCartoes() {
+  $('silos').innerHTML = SILOS.map(s => `
+    <article class="silo verde" id="silo-${s.id}">
+      <div class="silo-topo">
+        <div><h3>${s.nome.split(' — ')[0]}</h3><span class="cultura">${s.nome.split(' — ')[1]}</span><br><span class="fonte" data-fonte>🧪 Simulado</span></div>
+        <span class="selo r-verde" data-selo>—</span>
+      </div>
+      <div class="tag-falha">🔥 FALHA DE VENTILAÇÃO ATIVA</div>
+      <div class="medidas">
+        <div class="medida">
+          <div class="rot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>Temperatura</div>
+          <div class="num"><span data-t>—</span><small>°C</small></div>
+          <div class="meter"><div data-bt></div></div>
+        </div>
+        <div class="medida">
+          <div class="rot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7s7 7.1 7 12.1a7 7 0 0 1-14 0c0-5 7-12.1 7-12.1z"/></svg>Umidade</div>
+          <div class="num"><span data-u>—</span><small>%</small></div>
+          <div class="meter"><div data-bu></div></div>
+        </div>
+      </div>
+      <div class="hora">🕒 <span data-hora>Sem leitura ainda</span></div>
+    </article>`).join('');
+  const opcoes = SILOS.map(s => `<option value="${s.id}">${s.nome}</option>`).join('');
+  $('sel-falha').innerHTML = opcoes;
+  $('sel-grafico').innerHTML = opcoes;
+}
+
+function atualizarCartao(silo, l) {
+  const el = $('silo-' + silo.id);
+  el.className = 'silo ' + l.risco + (estado.falha[silo.id].ativa ? ' em-falha' : '');
+  el.querySelector('[data-t]').textContent = fmt(l.temperatura);
+  el.querySelector('[data-u]').textContent = fmt(l.umidade);
+  const selo = el.querySelector('[data-selo]');
+  selo.className = 'selo r-' + l.risco;
+  selo.textContent = NOMES_RISCO[l.risco];
+  const fonte = el.querySelector('[data-fonte]');
+  fonte.textContent = l.fonte === 'esp32' ? '📡 Sensor ESP32 (Wokwi)' : '🧪 Simulado';
+  fonte.className = 'fonte' + (l.fonte === 'esp32' ? ' real' : '');
+  el.querySelector('[data-bt]').style.width = Math.max(4, Math.min(100, (l.temperatura - 15) / 25 * 100)) + '%';
+  el.querySelector('[data-bu]').style.width = Math.max(4, Math.min(100, l.umidade)) + '%';
+  el.querySelector('[data-hora]').textContent = 'Última leitura: ' + l.hora + (estado.falha[silo.id].ativa ? ' · falha simulada ativa' : '');
+}
+
+// Mostra/esconde o aviso de falha, o efeito nos cartões e o estado dos botões
+function atualizarFalhaUI() {
+  const ativos = SILOS.filter(s => estado.falha[s.id].ativa);
+  const faixa = $('faixa-falha');
+  faixa.hidden = ativos.length === 0;
+  $('faixa-texto').textContent = ativos.length
+    ? 'Temperatura e umidade estão subindo em: ' + ativos.map(s => s.nome.split(' — ')[0]).join(', ') + '. Clique em "Voltar ao normal" para encerrar a simulação.'
+    : '';
+  $('btn-falha').classList.toggle('ativo', ativos.length > 0);
+  $('btn-normal').disabled = ativos.length === 0;
+  $('btn-normal').classList.toggle('destaque', ativos.length > 0);
+  SILOS.forEach(s => {
+    const el = $('silo-' + s.id);
+    if (el && el.classList) el.classList.toggle('em-falha', estado.falha[s.id].ativa);
+  });
+}
+
+function adicionarAlerta(classe, texto, horaTxt) {
+  const ul = $('alertas');
+  const vazio = $('alertas-vazio'); if (vazio) vazio.remove();
+  const li = document.createElement('li');
+  li.className = classe;
+  const b = document.createElement('b'); b.textContent = horaTxt;
+  const t = document.createElement('span'); t.textContent = texto;
+  li.appendChild(b); li.appendChild(t);
+  ul.insertBefore(li, ul.firstChild);
+  while (ul.children.length > CONFIG.maxAlertas) ul.removeChild(ul.lastChild);
+}
+
+function verificarAlerta(silo, l) {
+  const antes = estado.ultimoRisco[silo.id];
+  estado.ultimoRisco[silo.id] = l.risco;
+  if (antes === undefined && l.risco === 'verde') return;   // primeira leitura segura: sem alerta
+  if (antes === l.risco) return;
+  const nome = silo.nome.split(' — ')[0];
+  const dados = `${fmt(l.temperatura)} °C e ${fmt(l.umidade)} %`;
+  let msg;
+  if (antes !== undefined && ORDEM[l.risco] < ORDEM[antes]) msg = `${nome} melhorou para ${NOMES_RISCO[l.risco]}: ${dados}`;
+  else msg = `${nome} entrou em ${NOMES_RISCO[l.risco]}: ${dados}`;
+  adicionarAlerta(l.risco, msg, l.hora);
+}
+
+// ---------- Gráfico ----------
+let grafico;
+function montarGrafico() {
+  grafico = new Chart($('grafico'), {
+    type: 'line',
+    data: { labels: [], datasets: [
+      { label: 'Temperatura (°C)', data: [], borderColor: '#ea580c', backgroundColor: 'rgba(234,88,12,.12)', fill: true, yAxisID: 'yT', tension: .4, pointRadius: 0, pointHoverRadius: 5, borderWidth: 2.5 },
+      { label: 'Umidade (% UR)', data: [], borderColor: '#2563eb', backgroundColor: '#2563eb', yAxisID: 'yU', tension: .4, pointRadius: 0, pointHoverRadius: 5, borderWidth: 2.5, borderDash: [6, 4] }
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      font: { family: 'Inter, system-ui, sans-serif' },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, boxHeight: 12, useBorderRadius: true, borderRadius: 3, padding: 18, color: '#64756b', generateLabels: ch => Chart.defaults.plugins.legend.labels.generateLabels(ch).map(l => ({ ...l, fillStyle: l.strokeStyle })) } },
+        tooltip: { backgroundColor: '#14231b', padding: 12, cornerRadius: 10, boxPadding: 4 }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, color: '#64756b' }, grid: { display: false }, border: { display: false } },
+        yT: { position: 'left', ticks: { color: '#ea580c' }, border: { display: false }, grid: { color: '#edf1ee' }, suggestedMin: 20, suggestedMax: 40 },
+        yU: { position: 'right', ticks: { color: '#2563eb' }, border: { display: false }, suggestedMin: 40, suggestedMax: 90, grid: { drawOnChartArea: false } }
+      }
+    }
+  });
+}
+// ---------- Tema claro/escuro ----------
+function temaAtual() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
+
+function recolorirGrafico() {
+  if (!grafico) return;
+  const escuro = temaAtual() === 'dark';
+  const muted = escuro ? '#93a69b' : '#64756b';
+  const o = grafico.options;
+  o.scales.x.ticks.color = muted;
+  o.scales.yT.grid.color = escuro ? '#27372d' : '#edf1ee';
+  o.scales.yT.ticks.color = escuro ? '#fb923c' : '#ea580c';
+  o.scales.yU.ticks.color = escuro ? '#60a5fa' : '#2563eb';
+  o.plugins.legend.labels.color = muted;
+  o.plugins.tooltip.backgroundColor = escuro ? '#000000' : '#14231b';
+  const ds = grafico.data.datasets;
+  ds[0].borderColor = escuro ? '#fb923c' : '#ea580c';
+  ds[0].backgroundColor = escuro ? 'rgba(251,146,60,.16)' : 'rgba(234,88,12,.12)';
+  ds[1].borderColor = escuro ? '#60a5fa' : '#2563eb';
+  ds[1].backgroundColor = ds[1].borderColor;
+  grafico.update();
+}
+
+function aplicarTema(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('graosafe_tema', t); } catch (e) {}
+  $('btn-tema').textContent = t === 'dark' ? '☀️' : '🌙';
+  $('btn-tema').title = t === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro';
+  recolorirGrafico();
+}
+
+function atualizarGrafico() {
+  if (!grafico) return;
+  const lista = estado.porSilo[$('sel-grafico').value] || [];
+  grafico.data.labels = lista.map(l => l.hora);
+  grafico.data.datasets[0].data = lista.map(l => l.temperatura);
+  grafico.data.datasets[1].data = lista.map(l => l.umidade);
+  grafico.update();
+}
+
+// ---------- CSV ----------
+function baixarCSV() {
+  if (!estado.leituras.length) { alert('Ainda não há leituras para baixar.'); return; }
+  const linhas = ['timestamp,silo,temperatura,umidade,risco'];
+  estado.leituras.forEach(l => linhas.push(`${l.timestamp},${l.silo},${l.temperatura.toFixed(1)},${l.umidade.toFixed(1)},${l.risco}`));
+  const blob = new Blob([linhas.join('\n') + '\n'], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'graosafe_leituras.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ---------- Eventos ----------
+function ligarEventos() {
+  $('btn-tema').onclick = () => aplicarTema(temaAtual() === 'dark' ? 'light' : 'dark');
+  $('btn-pausa').onclick = () => {
+    estado.pausado = !estado.pausado;
+    $('btn-pausa').textContent = estado.pausado ? '▶ Continuar' : '⏸ Pausar';
+    $('ao-vivo').classList.toggle('pausado', estado.pausado);
+    iniciarTimer();
+  };
+  $('sel-intervalo').onchange = iniciarTimer;
+  $('sel-grafico').onchange = atualizarGrafico;
+  $('btn-falha').onclick = () => { estado.falha[$('sel-falha').value].ativa = true; atualizarFalhaUI(); };
+  $('btn-normal').onclick = () => { SILOS.forEach(s => estado.falha[s.id].ativa = false); atualizarFalhaUI(); };
+  atualizarFalhaUI();
+  $('btn-csv').onclick = baixarCSV;
+}
+
+// =====================================================================
+// IA — TEACHABLE MACHINE
+// =====================================================================
+const ia = { modelo: null, webcam: null, rodando: false, emAlerta: false, ultimoAlertaMs: 0 };
+
+function iaMsg(texto, erro) { const m = $('ia-msg'); m.textContent = texto; m.className = erro ? 'erro' : ''; }
+
+function carregarScript(src) {
+  return new Promise((ok, falha) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = ok; s.onerror = () => falha(new Error('Não foi possível baixar ' + src + '. Verifique a internet.'));
+    document.head.appendChild(s);
+  });
+}
+
+async function carregarBibliotecasIA() {
+  if (window.tmImage) return;
+  await carregarScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js');
+  await carregarScript('https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.5/dist/teachablemachine-image.min.js');
+}
+
+async function carregarModelo() {
+  let url = $('ia-url').value.trim();
+  if (!/^https:\/\/teachablemachine\.withgoogle\.com\/models\/[\w-]+\/?$/.test(url)) {
+    iaMsg('URL inválida. Use o formato https://teachablemachine.withgoogle.com/models/XXXX/ (link de upload do Teachable Machine).', true);
+    return;
+  }
+  if (!url.endsWith('/')) url += '/';
+  $('btn-modelo').disabled = true;
+  iaMsg('Carregando modelo…');
+  try {
+    await carregarBibliotecasIA();
+    ia.modelo = await tmImage.load(url + 'model.json', url + 'metadata.json');
+    const classes = ia.modelo.getTotalClasses();
+    $('ia-barras').innerHTML = '';
+    $('ia-aviso').style.display = 'none';
+    $('btn-cam').disabled = false;
+    $('ia-arquivo').disabled = false;
+    iaMsg(`Modelo carregado (${classes} classes). Ligue a webcam ou envie uma foto.`);
+  } catch (e) {
+    ia.modelo = null;
+    iaMsg('Não consegui carregar o modelo. Confira se a URL está certa e se o modelo foi exportado como "Upload (nuvem)". Detalhe: ' + (e.message || e), true);
+  } finally {
+    $('btn-modelo').disabled = false;
+  }
+}
+
+function mostrarProbabilidades(previsoes) {
+  const ruim = /mofad|ardid/i;
+  $('ia-barras').innerHTML = previsoes.map(p => {
+    const pct = Math.round(p.probability * 100);
+    return `<div class="prob ${ruim.test(p.className) ? 'ruim' : ''}">
+      <div class="topo"><span></span><strong>${pct}%</strong></div>
+      <div class="fundo"><div style="width:${pct}%"></div></div></div>`;
+  }).join('');
+  // nome da classe via textContent (evita injetar HTML)
+  $('ia-barras').querySelectorAll('.topo span').forEach((el, i) => el.textContent = previsoes[i].className);
+  checarAlertaIA(previsoes);
+}
+
+function checarAlertaIA(previsoes) {
+  const ruim = previsoes.find(p => /mofad|ardid/i.test(p.className));
+  const acima = ruim && ruim.probability > CONFIG.limiarIA;
+  const agora = Date.now();
+  if (acima && (!ia.emAlerta || agora - ia.ultimoAlertaMs > 30000)) {
+    const d = new Date();
+    adicionarAlerta('ia', `IA detectou grão MOFADO/ARDIDO (${Math.round(ruim.probability * 100)}% de probabilidade). Inspecione o lote.`, `${pad(d.getHours())}:${pad(d.getMinutes())}`);
+    ia.ultimoAlertaMs = agora;
+  }
+  ia.emAlerta = !!acima;
+}
+
+async function ligarWebcam() {
+  if (ia.webcam) { pararWebcam(); return; }
+  try {
+    ia.webcam = new tmImage.Webcam(300, 300, true);
+    await ia.webcam.setup();
+    await ia.webcam.play();
+  } catch (e) {
+    ia.webcam = null;
+    iaMsg('Não consegui acessar a câmera. Verifique se há uma webcam, se o navegador tem permissão e se outro programa não a está usando. Você ainda pode enviar uma foto.', true);
+    return;
+  }
+  $('ia-visual').innerHTML = ''; $('ia-visual').appendChild(ia.webcam.canvas);
+  $('btn-cam').textContent = '⏹ Desligar webcam';
+  iaMsg('Webcam ligada. Aponte para os grãos.');
+  ia.rodando = true;
+  requestAnimationFrame(laçoWebcam);
+}
+async function laçoWebcam() {
+  if (!ia.rodando || !ia.webcam) return;
+  ia.webcam.update();
+  try { mostrarProbabilidades(await ia.modelo.predict(ia.webcam.canvas)); } catch (e) { iaMsg('Erro ao classificar: ' + e.message, true); }
+  setTimeout(() => requestAnimationFrame(laçoWebcam), 300);
+}
+function pararWebcam() {
+  ia.rodando = false;
+  if (ia.webcam) { ia.webcam.stop(); ia.webcam = null; }
+  $('btn-cam').textContent = '📷 Ligar webcam';
+}
+
+function classificarArquivo(ev) {
+  const arq = ev.target.files[0];
+  if (!arq) return;
+  pararWebcam();
+  const img = new Image();
+  img.onload = async () => {
+    $('ia-visual').innerHTML = ''; $('ia-visual').appendChild(img);
+    try { mostrarProbabilidades(await ia.modelo.predict(img)); iaMsg('Foto classificada.'); }
+    catch (e) { iaMsg('Erro ao classificar a foto: ' + e.message, true); }
+  };
+  img.onerror = () => iaMsg('Não consegui abrir essa imagem. Tente outro arquivo (JPG ou PNG).', true);
+  img.src = URL.createObjectURL(arq);
+}
+
+// =====================================================================
+// SENSOR REAL — ESP32 (Wokwi): leituras coladas do Serial Monitor
+// =====================================================================
+const live = { ativo: {}, total: 0 };   // ativo[id] = silo usando dados do sensor
+
+function liveAtivo(id) { return !!live.ativo[id]; }
+
+// Aceita "ms,silo,temp,umid,risco" (igual ao Serial Monitor) ou JSON {silo,temperatura,umidade}
+function lerLinhaSensor(txt) {
+  txt = String(txt).trim();
+  if (!txt || /^timestamp|^erro|^aviso/i.test(txt)) return null;
+  let silo, t, u, ms = NaN;
+  if (txt[0] === '{') {
+    try { const j = JSON.parse(txt); silo = j.silo; t = Number(j.temperatura); u = Number(j.umidade); } catch (e) { return null; }
+  } else {
+    const p = txt.split(',').map(s => s.trim());
+    if (p.length < 4) return null;
+    ms = parseFloat(p[0]); silo = p[1]; t = parseFloat(p[2]); u = parseFloat(p[3]);
+  }
+  silo = String(silo || 'A').toUpperCase();
+  if (!SILOS.some(s => s.id === silo) || !isFinite(t) || !isFinite(u)) return null;
+  return { silo, t, u, ms };
+}
+
+// Registra uma leitura do sensor (r = resultado de lerLinhaSensor, d = data/hora da leitura)
+function registrarLeituraSensor(r, d) {
+  const silo = SILOS.find(s => s.id === r.silo);
+  if (!live.ativo[silo.id]) { estado.porSilo[silo.id].length = 0; live.ativo[silo.id] = true; }  // gráfico começa só com dados do sensor
+  live.total++;
+  const temperatura = Math.round(r.t * 10) / 10, umidade = Math.round(r.u * 10) / 10;
+  const l = { timestamp: textoDataSim(d), hora: `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`,
+              silo: silo.id, temperatura, umidade, risco: calcularRisco(temperatura, umidade), fonte: 'esp32' };
+  estado.leituras.push(l);
+  const lista = estado.porSilo[silo.id];
+  lista.push(l);
+  if (lista.length > CONFIG.maxPontosGrafico) lista.shift();
+  verificarAlerta(silo, l);
+  atualizarCartao(silo, l);
+}
+
+function importarSerial() {
+  const itens = $('serial-texto').value.split(/\r?\n/).map(lerLinhaSensor).filter(Boolean);
+  if (!itens.length) {
+    $('sensor-status').textContent = 'Nenhuma linha válida. Use o formato do Serial Monitor: timestamp_ms,silo,temperatura,umidade,risco';
+    return;
+  }
+  // espaça as leituras pelo tempo do ESP32 (coluna timestamp_ms); a última leitura fica "agora"
+  const ms = itens.map((r, i) => isFinite(r.ms) ? r.ms : i * 2000);
+  const fim = Date.now(), ultimo = ms[ms.length - 1];
+  itens.forEach((r, i) => registrarLeituraSensor(r, new Date(fim - (ultimo - ms[i]))));
+  atualizarGrafico();
+  atualizarStatusSensor(itens.length);
+}
+
+function voltarSimulacao() {
+  SILOS.forEach(s => { if (live.ativo[s.id]) { live.ativo[s.id] = false; estado.porSilo[s.id].length = 0; } });
+  live.total = 0;
+  atualizarStatusSensor();
+}
+
+function atualizarStatusSensor(importadas) {
+  const ids = SILOS.filter(s => live.ativo[s.id]).map(s => s.id);
+  $('sensor-status').textContent = ids.length
+    ? `Usando dados do sensor no Silo ${ids.join(', ')} (${live.total} leituras importadas${importadas ? ', ' + importadas + ' agora' : ''}). Cole mais linhas para continuar.`
+    : 'Nenhuma leitura do sensor importada — o Silo A está simulado.';
+  $('btn-voltar-sim').disabled = !ids.length;
+  $('no-esp').classList.toggle('on', ids.length > 0);
+  $('no-serial').classList.toggle('on', ids.length > 0);
+  $('no-painel').classList.toggle('on', ids.length > 0);
+}
+
+function ligarEventosSensor() {
+  $('btn-importar').onclick = importarSerial;
+  $('btn-voltar-sim').onclick = voltarSimulacao;
+}
+
+function ligarEventosIA() {
+  $('btn-modelo').onclick = carregarModelo;
+  $('btn-cam').onclick = ligarWebcam;
+  $('ia-arquivo').onchange = classificarArquivo;
+}
+
+// =====================================================================
+// INÍCIO
+// =====================================================================
+montarCartoes();
+montarGrafico();
+ligarEventos();
+aplicarTema(temaAtual());   // ajusta ícone do botão e cores do gráfico
+ligarEventosIA();
+ligarEventosSensor();
+passo();            // primeira leitura imediata
+iniciarTimer();
+</script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "author": "GraoSafe",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-dht22", "id": "dht1", "top": -105.3, "left": 119.4, "attrs": { "temperature": "26", "humidity": "55" } },
+    { "type": "wokwi-led", "id": "ledV", "top": -90, "left": -140, "attrs": { "color": "green" } },
+    { "type": "wokwi-led", "id": "ledA", "top": -90, "left": -100, "attrs": { "color": "yellow" } },
+    { "type": "wokwi-led", "id": "ledR", "top": -90, "left": -60, "attrs": { "color": "red" } },
+    { "type": "wokwi-resistor", "id": "rV", "top": -20, "left": -150, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "rA", "top": -20, "left": -110, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "rR", "top": -20, "left": -70, "rotate": 90, "attrs": { "value": "220" } }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "dht1:VCC", "esp:3V3", "red", [ "v0" ] ],
+    [ "dht1:GND", "esp:GND.2", "black", [ "v0" ] ],
+    [ "dht1:SDA", "esp:15", "green", [ "v0" ] ],
+    [ "esp:25", "rV:2", "green", [ "h0" ] ],
+    [ "rV:1", "ledV:A", "green", [ "h0" ] ],
+    [ "ledV:C", "esp:GND.1", "black", [ "v0" ] ],
+    [ "esp:26", "rA:2", "yellow", [ "h0" ] ],
+    [ "rA:1", "ledA:A", "yellow", [ "h0" ] ],
+    [ "ledA:C", "esp:GND.1", "black", [ "v0" ] ],
+    [ "esp:27", "rR:2", "red", [ "h0" ] ],
+    [ "rR:1", "ledR:A", "red", [ "h0" ] ],
+    [ "ledR:C", "esp:GND.1", "black", [ "v0" ] ]
+  ],
+  "dependencies": {}
+}

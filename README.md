@@ -21,7 +21,10 @@ Rondonópolis é um polo do agronegócio (soja e milho) e tem calor intenso. Peq
 ## O que tem na pasta
 
 ```
-index.html                       painel web (tudo em um arquivo)
+index.html                       painel web (estrutura da página)
+styles.css                       visual do painel (cores, tema claro/escuro, celular)
+app.js                           lógica: simulação, alertas, telas, Wokwi e IA
+assets/icone.svg                 logo e favicon
 wokwi/                           circuito e código do ESP32 + DHT22
 colab/analise_graosafe.ipynb     análise exploratória + regressão
 dados/exemplo_graosafe.csv       CSV de exemplo (1500 leituras)
@@ -31,7 +34,9 @@ relatorio/roteiro_relatorio.md   roteiro do relatório
 
 ## Como abrir o painel
 
-Dê duplo clique em **index.html**. Não precisa instalar nada nem ter servidor (só internet, para carregar o gráfico).
+Dê duplo clique em **index.html** (mantenha `styles.css`, `app.js` e a pasta `assets/` ao lado dele). Não precisa instalar nada nem ter servidor; só internet, para carregar o gráfico, os ícones e a fonte.
+
+O painel tem várias telas, com menu lateral no computador e barra inferior no celular: Visão geral, Silos, Alertas, Sensor real, Checagem por IA, Dados e CSV e Configurações. Os limites de risco e o tema escuro podem ser mudados em **Configurações**.
 
 - Leituras simuladas de 3 silos, uma nova a cada 5 s (dá para mudar para 2 s ou 10 s).
 - Cada leitura avança 10 minutos no relógio simulado: um dia inteiro passa em poucos minutos.

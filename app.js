@@ -47,7 +47,7 @@ const estado = {
 };
 SILOS.forEach(s => { estado.porSilo[s.id] = []; estado.falha[s.id] = { ativa: false, nivel: 0, sobe: INTENSIDADE.media }; });
 const live = { ativo: {}, total: 0 };      // silos usando dados do sensor real
-const ui = { serialTexto: '' };            // pequenos estados de interface
+const ui = { serialTexto: '', siloSensor: 'A' };            // pequenos estados de interface
 
 // ---------------------------------------------------------------------
 // UTILITÁRIOS
@@ -187,7 +187,7 @@ function beep() {
 const liveAtivo = id => !!live.ativo[id];
 
 // Aceita "ms,silo,temp,umid,risco" (igual ao Serial Monitor) ou JSON {silo,temperatura,umidade}
-function lerLinhaSensor(txt) {
+function lerLinhaSensor(txt, siloForcado) {
   txt = String(txt).trim();
   if (!txt || /^timestamp|^erro|^aviso/i.test(txt)) return null;
   let silo, t, u, ms = NaN;
@@ -198,16 +198,16 @@ function lerLinhaSensor(txt) {
     if (p.length < 4) return null;
     ms = parseFloat(p[0]); silo = p[1]; t = parseFloat(p[2]); u = parseFloat(p[3]);
   }
-  silo = String(silo || 'A').toUpperCase();
+  silo = siloForcado || String(silo || 'A').toUpperCase();   // o silo escolhido na tela tem prioridade
   if (!siloPorId(silo) || !isFinite(t) || !isFinite(u)) return null;
   return { silo, t, u, ms };
 }
 
-function analisarSerial(txt) {
+function analisarSerial(txt, siloForcado) {
   const ok = []; let ign = 0;
   txt.split(/\r?\n/).map(s => s.trim()).filter(Boolean).forEach(l => {
     if (/^timestamp/i.test(l)) return;
-    const r = lerLinhaSensor(l);
+    const r = lerLinhaSensor(l, siloForcado);
     if (r) ok.push(r); else ign++;
   });
   return { ok, ign };
@@ -222,22 +222,22 @@ function registrarLeituraSensor(r, d) {
     silo: silo.id, temperatura: t, umidade: u, risco: calcularRisco(t, u), fonte: 'esp32' });
 }
 
-function importarSerial(texto) {
-  const { ok } = analisarSerial(texto);
+function importarSerial(texto, siloId) {
+  const { ok } = analisarSerial(texto, siloId);
   if (!ok.length) { toast('atencao', 'Nenhuma linha válida', 'Use: timestamp_ms,silo,temperatura,umidade,risco'); return 0; }
   const ms = ok.map((r, i) => isFinite(r.ms) ? r.ms : i * 2000);
   const fim = Date.now(), ult = ms[ms.length - 1];
   ok.forEach((r, i) => registrarLeituraSensor(r, new Date(fim - (ult - ms[i]))));
-  toast('ok', 'Leituras importadas', `${ok.length} leituras do sensor no Silo ${ok[0].silo}`);
+  toast('ok', 'Leituras importadas', `${ok.length} leituras do sensor no ${siloPorId(siloId).nome}`);
   notificar();
   return ok.length;
 }
 
-function voltarSimulacao() {
+function voltarSimulacao(id) {
   let algum = false;
-  SILOS.forEach(s => { if (live.ativo[s.id]) { live.ativo[s.id] = false; estado.porSilo[s.id].length = 0; algum = true; } });
-  live.total = 0;
-  if (algum) toast('ok', 'Voltou à simulação', 'Os silos geram leituras simuladas de novo.');
+  SILOS.forEach(s => { if ((!id || s.id === id) && live.ativo[s.id]) { live.ativo[s.id] = false; estado.porSilo[s.id].length = 0; algum = true; } });
+  if (!SILOS.some(s => live.ativo[s.id])) live.total = 0;
+  if (algum) toast('ok', 'Voltou à simulação', id ? `${siloPorId(id).nome} gera leituras simuladas de novo.` : 'Os silos geram leituras simuladas de novo.');
   notificar();
 }
 
@@ -328,7 +328,7 @@ const limitesPlugin = {
     [[CFG.tempPerigo, '#DC2626', 'Perigo'], [CFG.tempAtencao, '#D97706', 'Atenção']].forEach(([v, c, t]) => {
       const y = yT.getPixelForValue(v); if (y < a.top || y > a.bottom) return;
       ctx.setLineDash([6, 5]); ctx.strokeStyle = c; ctx.beginPath(); ctx.moveTo(a.left, y); ctx.lineTo(a.right, y); ctx.stroke();
-      ctx.setLineDash([]); ctx.fillStyle = c; ctx.font = '600 11px Inter, sans-serif'; ctx.fillText(`${t} ${v}°`, a.left + 8, y - 5);
+      ctx.setLineDash([]); ctx.fillStyle = c; const tam = Math.round(((ch.options.font && ch.options.font.size) || 12) * 0.92); ctx.font = `600 ${tam}px Inter, sans-serif`; ctx.fillText(`${t} ${v}°`, a.left + 8, y - 5);
     });
     ctx.restore();
   }
@@ -607,13 +607,14 @@ const VAlertas = {
 
 // ===== Sensor real =====
 const VSensor = {
-  titulo: () => 'Sensor real', sub: () => 'Use as leituras do ESP32 simulado no Wokwi',
+  titulo: () => 'Sensor real', sub: () => 'Escolha o silo e use as leituras do ESP32 simulado no Wokwi',
   acoes: () => ['pill', 'guia-wokwi', 'tema'],
   mount(w) {
     w.innerHTML = `<section class="card status-card" id="sn-status"></section>
       <div class="row2" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)">
         <div class="stack">
           <section class="card"><div class="card-head"><div><h2>Cole as leituras do Wokwi</h2><p class="sub">Uma leitura por linha, separada por vírgulas</p></div><span class="tag ia">${ic('info')}&nbsp;Formato CSV</span></div>
+            <div class="destino"><div><b>Silo que receberá os dados</b><span class="sub">Vale para todas as linhas coladas, mesmo que o Serial Monitor mostre outro silo</span></div><div class="selwrap" style="min-width:230px"><select class="field" id="sn-silo" aria-label="Silo que receberá os dados"></select></div></div>
             <textarea id="sn-txt" class="terminal" spellcheck="false" aria-label="Leituras do Serial Monitor" placeholder="timestamp_ms,silo,temperatura,umidade,risco&#10;12000,A,26.0,55.0,verde"></textarea>
             <div class="btns"><button type="button" class="btn primary" id="sn-imp">${ic('upload')}<span id="sn-imp-t">Importar leituras</span></button><button type="button" class="btn" id="sn-lim">Limpar</button><button type="button" class="btn ghost push" id="sn-vol">Voltar à simulação</button></div></section>
           <section class="card" id="sn-prev"></section>
@@ -622,24 +623,33 @@ const VSensor = {
           <section class="card"><h2>Como conectar</h2><div class="passos" style="margin-top:14px">
             <div class="passo"><span class="n">${ic('check')}</span><div><b>Rode a simulação no Wokwi</b><span>ESP32 + DHT22 imprimindo no Serial Monitor</span></div></div>
             <div class="passo"><span class="n">${ic('check')}</span><div><b>Copie as linhas do Serial Monitor</b><span>Formato CSV, com ou sem o cabeçalho</span></div></div>
-            <div class="passo"><span class="n">3</span><div><b>Cole aqui e importe</b><span>O Silo A passa a usar o sensor</span></div></div></div></section>
+            <div class="passo"><span class="n">3</span><div><b>Escolha o silo, cole e importe</b><span>O silo escolhido passa a usar o sensor</span></div></div></div></section>
           <section class="card"><h2>Fluxo dos dados</h2><div class="fluxo" style="margin-top:14px"><span class="no">${ic('cpu')}ESP32 + DHT22</span>${ic('chevron-right', 'sep')}<span class="no">${ic('file-text')}Serial CSV</span>${ic('chevron-right', 'sep')}<span class="no fim">${ic('layout-grid')}Painel</span></div></section>
         </div>
       </div>`;
+    this.opcoesSilo();
+    $('sn-silo').addEventListener('change', e => { ui.siloSensor = e.target.value; this.prev(); this.update(); });
     const t = $('sn-txt'); t.value = ui.serialTexto;
     t.addEventListener('input', () => { ui.serialTexto = t.value; this.prev(); });
-    $('sn-imp').onclick = () => { if (importarSerial(t.value)) { t.value = ''; ui.serialTexto = ''; this.prev(); } };
+    $('sn-imp').onclick = () => { if (importarSerial(t.value, ui.siloSensor)) { t.value = ''; ui.serialTexto = ''; this.prev(); this.opcoesSilo(); } };
     $('sn-lim').onclick = () => { t.value = ''; ui.serialTexto = ''; this.prev(); };
-    $('sn-vol').onclick = voltarSimulacao;
+    $('sn-vol').onclick = () => voltarSimulacao(ui.siloSensor);
     this.prev(); this.update();
   },
+  // lista de silos do seletor (ponto de risco + origem atual dos dados)
+  opcoesSilo() {
+    const s = $('sn-silo'); if (!s) return;
+    s.innerHTML = SILOS.map(x => { const l = ultima(x.id); return `<option value="${x.id}" ${x.id === ui.siloSensor ? 'selected' : ''} ${l ? `data-dot="${l.risco}"` : ''} data-meta="${live.ativo[x.id] ? 'Sensor ESP32' : 'Simulado'}">${x.nome} — ${x.cultura}</option>`; }).join('');
+    const dd = s.nextElementSibling; if (dd && dd.classList.contains('dd')) { dd.remove(); delete s.dataset.dd; s.classList.remove('dd-native'); }
+    melhorarSelects(s.parentElement);
+  },
   prev() {
-    const { ok, ign } = analisarSerial($('sn-txt').value);
-    $('sn-imp-t').textContent = ok.length ? `Importar ${ok.length} ${ok.length === 1 ? 'leitura' : 'leituras'}` : 'Importar leituras';
+    const { ok, ign } = analisarSerial($('sn-txt').value, ui.siloSensor);
+    $('sn-imp-t').textContent = ok.length ? `Importar ${ok.length} ${ok.length === 1 ? 'leitura' : 'leituras'} no ${siloPorId(ui.siloSensor).nome}` : 'Importar leituras';
     $('sn-imp').disabled = !ok.length;
     $('sn-prev').innerHTML = ok.length || ign
       ? `<h2>Prévia da importação</h2><p class="sub" style="margin-bottom:12px">${ok.length} linhas válidas${ign ? ` · ${ign} ignorada${ign > 1 ? 's' : ''} (leitura inválida)` : ''}</p>
-         <div class="t-scroll"><table class="tabela"><thead><tr><th>Tempo</th><th>Temperatura</th><th>Umidade</th><th>Risco</th></tr></thead><tbody>${ok.slice(0, 6).map(r => `<tr><td>${isFinite(r.ms) ? Math.round(r.ms / 1000) + ' s' : '—'}</td><td>${fmt(r.t)} °C</td><td>${fmt(r.u)} %</td><td>${seloRisco(calcularRisco(r.t, r.u))}</td></tr>`).join('')}</tbody></table></div>`
+         <div class="t-scroll"><table class="tabela"><thead><tr><th>Tempo</th><th>Silo</th><th>Temperatura</th><th>Umidade</th><th>Risco</th></tr></thead><tbody>${ok.slice(0, 6).map(r => `<tr><td>${isFinite(r.ms) ? Math.round(r.ms / 1000) + ' s' : '—'}</td><td>${siloPorId(r.silo).nome}</td><td>${fmt(r.t)} °C</td><td>${fmt(r.u)} %</td><td>${seloRisco(calcularRisco(r.t, r.u))}</td></tr>`).join('')}</tbody></table></div>`
       : `<h2>Prévia da importação</h2><p class="sub">Cole as leituras acima para ver a prévia.</p>`;
     icones();
   },
@@ -647,9 +657,10 @@ const VSensor = {
     const ids = SILOS.filter(s => live.ativo[s.id]).map(s => s.id);
     const st = $('sn-status'); if (!st) return;
     st.className = 'card status-card' + (ids.length ? ' on' : '');
-    st.innerHTML = `<span class="s-ic">${ic(ids.length ? 'check' : 'plug')}</span><div><b>${ids.length ? 'Sensor em uso' : 'Sensor ainda não importado'}</b><div class="sub" style="margin:0">${ids.length ? `Silo ${ids.join(', ')} usando dados do ESP32 (${live.total} leituras importadas)` : 'O Silo A está usando dados simulados'}</div></div>
+    st.innerHTML = `<span class="s-ic">${ic(ids.length ? 'check' : 'plug')}</span><div><b>${ids.length ? 'Sensor em uso' : 'Sensor ainda não importado'}</b><div class="sub" style="margin:0">${ids.length ? `${ids.map(i => siloPorId(i).nome).join(', ')} usando dados do ESP32 (${live.total} leituras importadas)` : 'Todos os silos estão usando dados simulados'}</div></div>
       ${seg('snFonte', [['sim', 'Simulação'], ['real', 'Sensor real']], ids.length ? 'real' : 'sim')}`;
-    $('sn-vol').disabled = !ids.length;
+    $('sn-vol').disabled = !live.ativo[ui.siloSensor];
+    $('sn-vol').textContent = `Voltar à simulação (${siloPorId(ui.siloSensor).nome})`;
     icones();
   },
   unmount() {}
@@ -814,7 +825,7 @@ const VIA = {
 // ===== Dados e CSV =====
 const VDados = {
   titulo: () => 'Dados e CSV', sub: () => 'Exporte as leituras para a análise no Google Colab',
-  acoes: () => ['pill', 'csv', 'tema'],
+  acoes: () => ['pill', 'relatorio', 'csv', 'tema'],
   mount(w) {
     w.innerHTML = `<div class="stats" id="dd-stats"></div>
       <div class="row2" style="grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)">
@@ -825,6 +836,7 @@ const VDados = {
             <p style="font-weight:600;margin:16px 0 6px">Período</p>
             <div class="selwrap"><select class="field" id="dd-per" aria-label="Período"><option value="sessao">Toda a sessão</option><option value="1h">Última hora</option><option value="6h">Últimas 6 h</option><option value="24h">Últimas 24 h</option></select><span class="chev">${ic('chevron-down')}</span></div>
             <button type="button" class="btn primary block" id="dd-baixar" style="margin-top:16px">${ic('download')}Baixar CSV</button></section>
+          <section class="card"><h2>Relatório em PDF</h2><p class="sub" style="margin:4px 0 14px">Resumo da situação, gráficos, alertas e recomendações em formato A4, pronto para imprimir ou salvar.</p><button type="button" class="btn primary block" data-act="relatorio">${ic('file-text')}Gerar relatório</button></section>
           <section class="card"><h2>Analisar no Colab</h2><div class="passos" style="margin:14px 0">
             <div class="passo"><span class="n">1</span><div><b>Baixe o CSV</b></div></div><div class="passo"><span class="n">2</span><div><b>Envie para o Google Drive</b></div></div><div class="passo"><span class="n">3</span><div><b>Abra o notebook e rode as células</b></div></div></div>
             <a class="btn" href="colab/analise_graosafe.ipynb" target="_blank" rel="noopener">${ic('file-text')}Abrir guia do notebook</a></section>
@@ -916,7 +928,7 @@ function abrirSheetMais() {
   const item = (href, i, t, d, act) => `<${act ? 'button type="button" data-act="' + act + '"' : 'a href="' + href + '"'} class="s-item"><span class="s-ic">${ic(i)}</span><span><b>${t}</b><small>${d}</small></span>${ic('chevron-right', 'chev')}</${act ? 'button' : 'a'}>`;
   const ov = document.createElement('div'); ov.className = 'sheet-ov';
   ov.innerHTML = `<div class="sheet" role="dialog" aria-label="Mais opções"><div class="grip"></div><h2>Mais opções</h2>
-    ${item('#/sensor', 'cpu', 'Sensor real', 'Importar leituras do Wokwi')}${item('#/dados', 'database', 'Dados e CSV', 'Exportar para o Colab')}${item('#/config', 'sliders-horizontal', 'Configurações', 'Limites, simulação e tema')}${item('', 'flame', 'Simular falha', 'Testar o alerta de risco', 'falha')}</div>`;
+    ${item('#/sensor', 'cpu', 'Sensor real', 'Importar leituras do Wokwi')}${item('#/dados', 'database', 'Dados e CSV', 'Exportar para o Colab')}${item('#/config', 'sliders-horizontal', 'Configurações', 'Limites, simulação e tema')}${item('', 'file-text', 'Relatório em PDF', 'Gerar e imprimir', 'relatorio')}${item('', 'flame', 'Simular falha', 'Testar o alerta de risco', 'falha')}</div>`;
   document.body.appendChild(ov);
   icones();
   ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('a,button')) ov.remove(); });
@@ -937,6 +949,7 @@ function acaoHTML(k) {
       ? `<button type="button" class="btn dng-fill desk" data-act="falha-fim">${ic('check')}Encerrar falha</button>`
       : `<button type="button" class="btn dng desk" data-act="falha">${ic('flame')}Simular falha</button>`;
     case 'pausar': return `<button type="button" class="btn dark desk" data-act="pausar">${ic(estado.pausado ? 'play' : 'pause')}${estado.pausado ? 'Continuar' : 'Pausar'}</button>`;
+    case 'relatorio': return `<button type="button" class="btn primary desk" data-act="relatorio">${ic('file-text')}Gerar relatório</button>`;
     case 'csv': return `<button type="button" class="btn desk" data-act="csv">${ic('download')}Baixar CSV</button>`;
     case 'lidos': return `<button type="button" class="btn desk" data-act="lidos">${ic('check')}Marcar como lidos</button>`;
     case 'guia-wokwi': return `<button type="button" class="btn desk" data-act="guia-wokwi">${ic('info')}Guia do Wokwi</button>`;
@@ -972,9 +985,10 @@ function atualizarMenus() {
   document.querySelectorAll('#side [data-rota]').forEach(a => a.classList.toggle('on', a.dataset.rota === nomeRota));
   $('sub-silos').innerHTML = SILOS.map(s => { const l = ultima(s.id); return `<a class="nav ${nomeRota === 'silo' && argAtual === s.id ? 'on' : ''}" href="#/silo/${s.id}"><i class="pt ${l ? l.risco : ''}"></i><span>${s.nome}</span><small>${s.cultura}</small></a>`; }).join('');
   const b = $('badge-alertas'); b.textContent = estado.naoLidos || ''; b.classList.toggle('zero', !estado.naoLidos);
-  const real = liveAtivo('A');
+  const comSensor = SILOS.filter(s => liveAtivo(s.id)).map(s => s.nome);
+  const real = comSensor.length > 0;
   document.querySelectorAll('#seg-fonte button').forEach(x => x.classList.toggle('on', x.dataset.v === (real ? 'real' : 'sim')));
-  $('fonte-txt').textContent = real ? 'Silo A usando dados do ESP32 (Wokwi). Volte à simulação quando quiser.' : `Leituras simuladas a cada ${CFG.intervalo / 1000} s. Importe do Wokwi na aba Sensor real.`;
+  $('fonte-txt').textContent = real ? `${comSensor.join(', ')} usando dados do ESP32 (Wokwi). Volte à simulação quando quiser.` : `Leituras simuladas a cada ${CFG.intervalo / 1000} s. Importe do Wokwi na aba Sensor real.`;
   const ativo = { '': 0, silos: 1, silo: 1, alertas: 2, ia: 3, sensor: 4, dados: 4, config: 4 }[nomeRota];
   $('bottom').innerHTML = [['#/', 'home', 'Início'], ['#/silos', 'database', 'Silos'], ['#/alertas', 'bell', 'Alertas'], ['#/ia', 'scan-line', 'IA']].map(([h, i, t], k) => `<a href="${h}" class="${ativo === k ? 'on' : ''}">${ic(i)}${t}</a>`).join('')
     + `<button type="button" data-act="mais" class="${ativo === 4 ? 'on' : ''}">${ic('more-horizontal')}Mais</button>`;
@@ -1018,12 +1032,13 @@ const ACOES = {
   pausar() { estado.pausado = !estado.pausado; iniciarTimer(); renderAcoes(); atualizarPill(); },
   falha() { abrirModalFalha(rotaAtual === 'silo' ? argAtual : 'A'); },
   'falha-fim': normalizar,
+  relatorio() { abrirRelatorio(); },
   csv() { baixarCSV(rotaAtual === 'silo' ? [argAtual] : null, 'sessao'); },
   lidos() { estado.naoLidos = 0; estado.alertas.forEach(a => a.naoLido = false); notificar(); },
   'guia-wokwi'() {
     abrirModal(`<div class="m-head"><span class="m-ic" style="background:var(--safe-bg);color:var(--safe)">${ic('cpu')}</span><div><h2>Guia do Wokwi</h2></div></div>
       <ol><li>No Wokwi, crie um projeto <b>ESP32</b> e cole os arquivos da pasta <b>wokwi/</b> (sketch.ino, diagram.json e libraries.txt).</li><li>Inicie a simulação e mexa no DHT22.</li>
-      <li>Copie as linhas do <b>Serial Monitor</b> e cole aqui, em <b>Sensor real</b>.</li><li>Clique em <b>Importar</b>: o Silo A passa a usar o sensor.</li></ol>
+      <li>Copie as linhas do <b>Serial Monitor</b> e cole aqui, em <b>Sensor real</b>.</li><li>Escolha o <b>silo que receberá os dados</b> e clique em <b>Importar</b>: ele passa a usar o sensor.</li></ol>
       <div class="m-btns"><button type="button" class="btn primary" data-fechar>Entendi</button></div>`);
   },
   'guia-ia'() { abrirModal(`<div class="m-head"><span class="m-ic" style="background:var(--safe-bg);color:var(--safe)">${ic('scan-line')}</span><div><h2>Como treinar o modelo</h2></div></div>${guiaIAHTML()}<div class="m-btns"><button type="button" class="btn primary" data-fechar>Entendi</button></div>`); },
@@ -1041,8 +1056,8 @@ document.addEventListener('click', e => {
   const sf = e.target.closest('[data-seg="fonte"] button, [data-seg="snFonte"] button');
   if (sf) {
     if (sf.dataset.v === 'sim') voltarSimulacao();
-    else if (!liveAtivo('A') && rotaAtual !== 'sensor') location.hash = '#/sensor';
-    else if (!liveAtivo('A')) { const t = $('sn-txt'); if (t) t.focus(); }
+    else if (!SILOS.some(s => liveAtivo(s.id)) && rotaAtual !== 'sensor') location.hash = '#/sensor';
+    else if (!SILOS.some(s => liveAtivo(s.id))) { const t = $('sn-txt'); if (t) t.focus(); }
     notificar();
   }
 });

@@ -394,3 +394,8 @@ select.field{appearance:none;background-image:none;cursor:pointer}
 .dd-opt.sel{background:var(--primary-soft);color:var(--primary-d);font-weight:600}
 :root[data-theme="dark"] .dd-opt.sel{color:var(--safe)}
 .dd-ck{width:16px;height:16px;color:var(--primary);flex:none;margin-left:4px}
+
+/* Sensor real: escolha do silo de destino */
+.destino{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px;padding:14px 16px;border-radius:14px;background:var(--line2)}
+.destino b{display:block;font-weight:650}.destino .sub{display:block;font-size:12.5px;max-width:360px}
+@media (max-width:1023px){.destino .selwrap{width:100%;min-width:0 !important}}

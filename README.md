@@ -24,6 +24,7 @@ Rondonópolis é um polo do agronegócio (soja e milho) e tem calor intenso. Peq
 index.html                       painel web (estrutura da página)
 styles.css                       visual do painel (cores, tema claro/escuro, celular)
 app.js                           lógica: simulação, alertas, telas, Wokwi e IA
+relatorio.js                     gerador do relatório em PDF (A4, 2 páginas)
 assets/icone.svg                 logo e favicon
 wokwi/                           circuito e código do ESP32 + DHT22
 colab/analise_graosafe.ipynb     análise exploratória + regressão
@@ -37,6 +38,8 @@ relatorio/roteiro_relatorio.md   roteiro do relatório
 Dê duplo clique em **index.html** (mantenha `styles.css`, `app.js` e a pasta `assets/` ao lado dele). Não precisa instalar nada nem ter servidor; só internet, para carregar o gráfico, os ícones e a fonte.
 
 O painel tem várias telas, com menu lateral no computador e barra inferior no celular: Visão geral, Silos, Alertas, Sensor real, Checagem por IA, Dados e CSV e Configurações. Os limites de risco e o tema escuro podem ser mudados em **Configurações**.
+
+**Relatório em PDF:** em **Dados e CSV**, clique em **Gerar relatório**. Abre uma nova aba com o relatório (cabeçalho com logo, situação geral, estatísticas por silo, alertas, gráficos, recomendações e metodologia). Clique em **Imprimir / Salvar PDF** e escolha *Salvar como PDF*. Se nada abrir, permita pop-ups para o site.
 
 - Leituras simuladas de 3 silos, uma nova a cada 5 s (dá para mudar para 2 s ou 10 s).
 - Cada leitura avança 10 minutos no relógio simulado: um dia inteiro passa em poucos minutos.
@@ -62,9 +65,9 @@ O painel tem várias telas, com menu lateral no computador e barra inferior no c
 ### Levando os dados do Wokwi para o painel
 
 1. Com a simulação rodando, selecione as linhas do **Serial Monitor** (ex.: `16682,A,16.4,51.0,verde`) e copie.
-2. No painel (`index.html`), vá na seção **📡 Sensor real**, cole no campo de texto e clique em **Importar leituras**.
-3. O **Silo A** passa a mostrar **📡 Sensor ESP32 (Wokwi)**; o gráfico, os alertas e o CSV usam esses valores. Cole mais linhas quando quiser atualizar.
-4. Clique em **Voltar à simulação** para o Silo A voltar a ser simulado.
+2. No painel, abra **Sensor real**, escolha em **Silo que receberá os dados** qual silo usará o sensor, cole as linhas e clique em **Importar leituras**. O silo escolhido vale para todas as linhas, mesmo que o Serial Monitor mostre outro.
+3. O silo escolhido passa a mostrar **Sensor ESP32**; o gráfico, os alertas e o CSV usam esses valores. Cole mais linhas quando quiser atualizar.
+4. Clique em **Voltar à simulação** para o silo escolhido voltar a ser simulado.
 
 Ligações: DHT22 no GPIO 15 (3V3 e GND); LEDs verde/amarelo/vermelho nos GPIO 25/26/27, cada um com resistor de 220 Ω.
 

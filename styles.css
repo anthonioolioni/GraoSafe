@@ -372,3 +372,25 @@ select.field{appearance:none;background-image:none;cursor:pointer}
 .brand .safe{color:#4ADE80}
 .fonte-box .seg button{padding:7px 6px;font-size:13px;white-space:nowrap;justify-content:center}
 @media (max-width:1023px){.acoes{flex-wrap:nowrap;flex:none}.mbrand small{white-space:nowrap}.mbrand b{white-space:nowrap}}
+
+/* ---------- Menu suspenso próprio ---------- */
+.dd{position:relative}
+.dd-native{position:absolute !important;opacity:0;pointer-events:none;width:1px;height:1px;overflow:hidden}
+.selwrap>.chev{display:none}
+.dd-btn{display:flex;align-items:center;gap:10px;width:100%;height:44px;padding:0 14px;border:1px solid var(--line);border-radius:var(--radius-ctl);background:var(--surface);color:var(--ink);font-weight:500;text-align:left;transition:border-color .12s,box-shadow .12s}
+.dd-btn:hover{border-color:var(--muted)}
+.dd-btn[aria-expanded="true"]{border-color:var(--primary);box-shadow:0 0 0 4px rgba(21,128,61,.15)}
+.dd-lab{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dd-chev{width:16px;height:16px;color:var(--muted);flex:none;transition:transform .15s}
+.dd-btn[aria-expanded="true"] .dd-chev{transform:rotate(180deg)}
+.select .dd-btn{border:0;background:transparent;height:40px;padding:0;gap:8px;width:auto;box-shadow:none}
+.select .dd-btn:hover{border:0}
+.select .dd-dot{display:none !important}
+.dd-menu{position:fixed;z-index:90;margin:0;padding:6px;list-style:none;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-pop);max-height:280px;overflow:auto;animation:entra .12s}
+.dd-opt{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-weight:500;color:var(--ink)}
+.dd-opt .dd-t{flex:1;min-width:0}
+.dd-opt small{color:var(--muted);font-variant-numeric:tabular-nums;font-weight:500}
+.dd-opt.foco{background:var(--line2)}
+.dd-opt.sel{background:var(--primary-soft);color:var(--primary-d);font-weight:600}
+:root[data-theme="dark"] .dd-opt.sel{color:var(--safe)}
+.dd-ck{width:16px;height:16px;color:var(--primary);flex:none;margin-left:4px}

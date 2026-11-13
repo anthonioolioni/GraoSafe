@@ -57,7 +57,7 @@ const pad = n => String(n).padStart(2, '0');
 const fmt = n => Number(n).toFixed(1).replace('.', ',');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ic = (nome, cls) => `<i data-lucide="${nome}" class="ic ${cls || ''}"></i>`;
-const icones = () => { try { if (window.lucide) lucide.createIcons(); } catch (e) {} };
+const icones = () => { try { if (window.lucide) lucide.createIcons(); } catch (e) {} melhorarSelects(document); };
 const ultima = id => { const l = estado.porSilo[id]; return l.length ? l[l.length - 1] : null; };
 const siloPorId = id => SILOS.find(s => s.id === id);
 const ruido = amp => (Math.random() * 2 - 1) * amp;
@@ -376,6 +376,81 @@ function onSeg(w, nome, fn) {
   });
 }
 function setHTML(el, html) { if (el && el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; } }
+
+// ---------------------------------------------------------------------
+// MENU SUSPENSO PRÓPRIO (substitui a lista nativa do <select>)
+// O <select> original continua existindo (escondido) e recebe o valor e o evento "change".
+// Cada <option> pode ter data-dot="verde|amarelo|vermelho" e data-meta="texto à direita".
+// ---------------------------------------------------------------------
+function melhorarSelects(raiz) {
+  (raiz || document).querySelectorAll('select:not([data-dd])').forEach(sel => {
+    sel.dataset.dd = '1';
+    const dd = document.createElement('div');
+    dd.className = 'dd';
+    dd.innerHTML = `<button type="button" class="dd-btn" aria-haspopup="listbox" aria-expanded="false"><i class="dd-dot"></i><span class="dd-lab"></span>${ic('chevron-down', 'dd-chev')}</button>`;
+    sel.classList.add('dd-native'); sel.tabIndex = -1; sel.setAttribute('aria-hidden', 'true');
+    sel.insertAdjacentElement('afterend', dd);
+    const btn = dd.querySelector('.dd-btn');
+    if (sel.getAttribute('aria-label')) btn.setAttribute('aria-label', sel.getAttribute('aria-label'));
+    let menu = null, idx = -1;
+
+    const atualizar = () => {
+      const o = sel.options[sel.selectedIndex];
+      dd.querySelector('.dd-lab').textContent = o ? o.textContent : '';
+      const dot = dd.querySelector('.dd-dot');
+      dot.className = 'dd-dot' + (o && o.dataset.dot ? ' pt ' + o.dataset.dot : '');
+      dot.style.display = o && o.dataset.dot ? '' : 'none';
+    };
+    const rolou = e => { if (!(menu && menu.contains(e.target))) fechar(); };
+    const fora = e => { if (menu && !menu.contains(e.target) && !dd.contains(e.target)) fechar(); };
+    function fechar() {
+      if (menu) { menu.remove(); menu = null; }
+      btn.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('mousedown', fora, true);
+      window.removeEventListener('resize', fechar);
+      window.removeEventListener('scroll', rolou, true);
+    }
+    const escolher = i => {
+      sel.selectedIndex = i; atualizar(); fechar();
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      btn.focus();
+    };
+    const marcar = i => {
+      idx = Math.max(0, Math.min(sel.options.length - 1, i));
+      [...menu.children].forEach((li, k) => li.classList.toggle('foco', k === idx));
+      menu.children[idx].scrollIntoView({ block: 'nearest' });
+    };
+    const abrir = () => {
+      if (menu) return;
+      menu = document.createElement('ul');
+      menu.className = 'dd-menu'; menu.setAttribute('role', 'listbox');
+      menu.innerHTML = [...sel.options].map((o, i) => `<li role="option" class="dd-opt${i === sel.selectedIndex ? ' sel' : ''}" data-i="${i}" aria-selected="${i === sel.selectedIndex}">${o.dataset.dot ? `<i class="pt ${esc(o.dataset.dot)}"></i>` : ''}<span class="dd-t">${esc(o.textContent)}</span>${o.dataset.meta ? `<small>${esc(o.dataset.meta)}</small>` : ''}${i === sel.selectedIndex ? ic('check', 'dd-ck') : ''}</li>`).join('');
+      document.body.appendChild(menu);
+      try { if (window.lucide) lucide.createIcons(); } catch (e) {}
+      const r = (sel.closest('.selwrap') ? dd : btn).getBoundingClientRect();
+      menu.style.minWidth = Math.max(r.width, 190) + 'px';
+      const mw = menu.offsetWidth, mh = menu.offsetHeight;
+      menu.style.left = Math.max(8, Math.min(r.left, innerWidth - mw - 8)) + 'px';
+      menu.style.top = (r.bottom + mh + 14 > innerHeight && r.top > mh + 14 ? r.top - mh - 6 : r.bottom + 6) + 'px';
+      btn.setAttribute('aria-expanded', 'true');
+      menu.addEventListener('mousedown', e => e.preventDefault());
+      menu.addEventListener('click', e => { const li = e.target.closest('.dd-opt'); if (li) escolher(Number(li.dataset.i)); });
+      menu.addEventListener('mousemove', e => { const li = e.target.closest('.dd-opt'); if (li) marcar(Number(li.dataset.i)); });
+      document.addEventListener('mousedown', fora, true);
+      window.addEventListener('resize', fechar);
+      window.addEventListener('scroll', rolou, true);
+      marcar(sel.selectedIndex);
+    };
+    btn.addEventListener('click', () => (menu ? fechar() : abrir()));
+    btn.addEventListener('keydown', e => {
+      if (['ArrowDown', 'ArrowUp'].includes(e.key)) { e.preventDefault(); if (!menu) abrir(); else marcar(idx + (e.key === 'ArrowDown' ? 1 : -1)); }
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!menu) abrir(); else escolher(idx); }
+      else if (e.key === 'Escape' && menu) { e.stopPropagation(); fechar(); }
+      else if (e.key === 'Tab') fechar();
+    });
+    atualizar();
+  });
+}
 
 // ---------------------------------------------------------------------
 // TELAS
@@ -823,11 +898,11 @@ const VConfig = {
 function abrirModal(html) {
   $('modal-root').innerHTML = `<div class="overlay"><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`;
   icones();
-  const f = $('modal-root').querySelector('select,button,input'); if (f) f.focus();
+  const f = $('modal-root').querySelector('button,input'); if (f) f.focus();
 }
 function fecharModal() { $('modal-root').innerHTML = ''; }
 function abrirModalFalha(idInicial) {
-  const op = SILOS.map(s => `<option value="${s.id}" ${s.id === idInicial ? 'selected' : ''}>${s.nome} — ${s.cultura}</option>`).join('');
+  const op = SILOS.map(s => { const l = ultima(s.id); return `<option value="${s.id}" ${s.id === idInicial ? 'selected' : ''} ${l ? `data-dot="${l.risco}" data-meta="${fmt(l.temperatura)} °C"` : ''}>${s.nome} — ${s.cultura}</option>`; }).join('');
   abrirModal(`<div class="m-head"><span class="m-ic">${ic('flame')}</span><div><h2>Simular falha de ventilação</h2><p class="sub">Temperatura e umidade vão subir aos poucos.</p></div></div>
     <label for="mf-silo">Silo afetado</label><div class="selwrap"><select class="field" id="mf-silo">${op}</select><span class="chev">${ic('chevron-down')}</span></div>
     <label>Intensidade</label><div id="mf-int">${seg('mfInt', [['leve', 'Leve'], ['media', 'Média'], ['forte', 'Forte']], 'media')}</div>
@@ -857,7 +932,7 @@ function acaoHTML(k) {
   const tema = document.documentElement.dataset.theme === 'dark';
   switch (k) {
     case 'pill': return '<button type="button" class="pill" id="pill" data-act="pausar" aria-label="Pausar ou continuar"><i class="ponto"></i><span id="pill-t"></span></button>';
-    case 'int': return `<label class="select desk">${ic('refresh-cw')}<select id="sel-int" aria-label="Intervalo de atualização">${[2000, 5000, 10000].map(v => `<option value="${v}" ${v === CFG.intervalo ? 'selected' : ''}>A cada ${v / 1000} s</option>`).join('')}</select>${ic('chevron-down', 'chev')}</label>`;
+    case 'int': return `<div class="select desk">${ic('refresh-cw')}<select id="sel-int" aria-label="Intervalo de atualização">${[2000, 5000, 10000].map(v => `<option value="${v}" ${v === CFG.intervalo ? 'selected' : ''}>A cada ${v / 1000} s</option>`).join('')}</select></div>`;
     case 'falha': return falhaAtiva().length
       ? `<button type="button" class="btn dng-fill desk" data-act="falha-fim">${ic('check')}Encerrar falha</button>`
       : `<button type="button" class="btn dng desk" data-act="falha">${ic('flame')}Simular falha</button>`;

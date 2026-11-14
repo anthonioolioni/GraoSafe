@@ -1,7 +1,7 @@
 'use strict';
 /* =====================================================================
    GraoSafe — app.js
-   Simulação de silos + alertas + sensor (Wokwi) + IA (Teachable Machine)
+   Simulação de silos + alertas + sensor (Wokwi) + relatório
    Navegação por telas usando #hash (funciona abrindo o arquivo direto).
    ===================================================================== */
 
@@ -17,7 +17,7 @@ function salvarCfg() { try { localStorage.setItem('graosafe_cfg', JSON.stringify
 const SIM = {
   tempMedia: 27, tempAmplitude: 4, horaPico: 15, umidBase: 55, umidPorGrau: 2,
   ruidoTemp: 0.4, ruidoUmid: 1.5, falhaTemp: 7, falhaUmid: 18, falhaDesce: 0.25,
-  limiarIA: 0.70, maxAlertas: 100, maxPontos: 288
+  maxAlertas: 100, maxPontos: 288
 };
 const INTENSIDADE = { leve: 0.06, media: 0.12, forte: 0.25 };
 
@@ -456,16 +456,16 @@ function melhorarSelects(raiz) {
 // TELAS
 // ---------------------------------------------------------------------
 const RECS = {
-  verde: [['check', 'Tudo certo', 'Continue monitorando as leituras.'], ['wind', 'Mantenha a ventilação', 'Rotina normal de aeração nos horários mais frescos.'], ['scan-line', 'Inspeção de rotina', 'Use a Checagem por IA de vez em quando.']],
-  amarelo: [['wind', 'Aumente a ventilação', 'Ligue a aeração por 2 a 3 horas nos horários mais frescos.'], ['thermometer', 'Verifique pontos quentes', 'Confira se há acúmulo de calor em camadas profundas.'], ['scan-line', 'Inspecione uma amostra', 'Use a Checagem por IA para ver se há grão mofado.']],
-  vermelho: [['flame', 'Ação imediata', 'Ligue toda a ventilação disponível agora.'], ['thermometer', 'Localize o foco de calor', 'Verifique camadas profundas e cantos do silo.'], ['scan-line', 'Inspecione e separe o lote', 'Cheque amostras por IA e isole grãos mofados.']]
+  verde: [['check', 'Tudo certo', 'Continue monitorando as leituras.'], ['wind', 'Mantenha a ventilação', 'Rotina normal de aeração nos horários mais frescos.'], ['search', 'Inspeção de rotina', 'Faça uma inspeção visual periódica do grão.']],
+  amarelo: [['wind', 'Aumente a ventilação', 'Ligue a aeração por 2 a 3 horas nos horários mais frescos.'], ['thermometer', 'Verifique pontos quentes', 'Confira se há acúmulo de calor em camadas profundas.'], ['search', 'Inspecione uma amostra', 'Retire uma amostra do silo e confira se há grão mofado.']],
+  vermelho: [['flame', 'Ação imediata', 'Ligue toda a ventilação disponível agora.'], ['thermometer', 'Localize o foco de calor', 'Verifique camadas profundas e cantos do silo.'], ['search', 'Inspecione e separe o lote', 'Confira amostras do silo e isole os grãos mofados.']]
 };
 
 function itemAlerta(a, completo) {
-  const icone = { atencao: 'alert-triangle', perigo: 'flame', normal: 'check', ia: 'scan-line' }[a.tipo];
+  const icone = { atencao: 'alert-triangle', perigo: 'flame', normal: 'check' }[a.tipo];
   if (!completo) return `<div class="alert-item"><span class="al-ic ${a.tipo}">${ic(icone)}</span><div class="al-txt"><div class="al-top"><b>${esc(a.titulo)}</b><span class="al-hora">${a.hora}</span></div><span>${esc(a.detalhe)}</span></div></div>`;
   return `<div class="alert-item ${a.naoLido ? 'nao-lido' : ''}"><span class="al-ic ${a.tipo}">${ic(icone)}</span><div class="al-txt"><b>${esc(a.titulo)}</b><span>${esc(a.detalhe)}</span></div>
-    ${a.silo ? `<span class="tag hide-m">${siloPorId(a.silo).nome}</span>` : '<span class="tag ia hide-m">IA</span>'}<span class="al-hora">${a.hora}</span>
+    ${a.silo ? `<span class="tag hide-m">${siloPorId(a.silo).nome}</span>` : ''}<span class="al-hora">${a.hora}</span>
     ${a.silo ? `<a class="btn sm" href="#/silo/${a.silo}">Ver silo</a>` : ''}</div>`;
 }
 
@@ -576,9 +576,9 @@ const VSilo = {
 };
 
 // ===== Alertas =====
-const FILTROS = { todos: () => true, perigo: a => a.tipo === 'perigo', atencao: a => a.tipo === 'atencao', ia: a => a.tipo === 'ia', normal: a => a.tipo === 'normal' };
+const FILTROS = { todos: () => true, perigo: a => a.tipo === 'perigo', atencao: a => a.tipo === 'atencao', normal: a => a.tipo === 'normal' };
 const VAlertas = {
-  titulo: () => 'Alertas', sub: () => 'Histórico de mudanças de risco e avisos da IA',
+  titulo: () => 'Alertas', sub: () => 'Histórico de mudanças de risco e avisos do sistema',
   acoes: () => ['pill', 'lidos', 'csv', 'tema'],
   mount(w) {
     this.filtro = 'todos';
@@ -588,7 +588,7 @@ const VAlertas = {
   },
   update() {
     const A = estado.alertas, n = k => A.filter(FILTROS[k]).length;
-    $('al-chips').innerHTML = [['todos', 'Todos'], ['perigo', 'Perigo'], ['atencao', 'Atenção'], ['ia', 'IA'], ['normal', 'Normalizados']]
+    $('al-chips').innerHTML = [['todos', 'Todos'], ['perigo', 'Perigo'], ['atencao', 'Atenção'], ['normal', 'Normalizados']]
       .map(([k, t]) => `<button type="button" class="chip ${this.filtro === k ? 'on' : ''}" data-f="${k}">${t} <small>${n(k)}</small></button>`).join('');
     const lista = A.filter(FILTROS[this.filtro]);
     const hojeChave = textoData(new Date()).slice(0, 10), grupos = {};
@@ -613,7 +613,7 @@ const VSensor = {
     w.innerHTML = `<section class="card status-card" id="sn-status"></section>
       <div class="row2" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)">
         <div class="stack">
-          <section class="card"><div class="card-head"><div><h2>Cole as leituras do Wokwi</h2><p class="sub">Uma leitura por linha, separada por vírgulas</p></div><span class="tag ia">${ic('info')}&nbsp;Formato CSV</span></div>
+          <section class="card"><div class="card-head"><div><h2>Cole as leituras do Wokwi</h2><p class="sub">Uma leitura por linha, separada por vírgulas</p></div><span class="tag info">${ic('info')}&nbsp;Formato CSV</span></div>
             <div class="destino"><div><b>Silo que receberá os dados</b><span class="sub">Vale para todas as linhas coladas, mesmo que o Serial Monitor mostre outro silo</span></div><div class="selwrap" style="min-width:230px"><select class="field" id="sn-silo" aria-label="Silo que receberá os dados"></select></div></div>
             <textarea id="sn-txt" class="terminal" spellcheck="false" aria-label="Leituras do Serial Monitor" placeholder="timestamp_ms,silo,temperatura,umidade,risco&#10;12000,A,26.0,55.0,verde"></textarea>
             <div class="btns"><button type="button" class="btn primary" id="sn-imp">${ic('upload')}<span id="sn-imp-t">Importar leituras</span></button><button type="button" class="btn" id="sn-lim">Limpar</button><button type="button" class="btn ghost push" id="sn-vol">Voltar à simulação</button></div></section>
@@ -666,165 +666,9 @@ const VSensor = {
   unmount() {}
 };
 
-// ===== Checagem por IA (Teachable Machine) =====
-const ia = { modelo: null, webcam: null, rodando: false, emAlerta: false, ultimoAlertaMs: 0, hist: [], ultimo: null, modo: 'webcam', msg: '', erro: false, url: '', timer: null };
-const RUIM = /mofad|ardid/i;
-function carregarScript(src) {
-  return new Promise((ok, falha) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => falha(new Error('Não foi possível baixar ' + src + '. Verifique a internet.')); document.head.appendChild(s); });
-}
-async function carregarBibliotecasIA() {
-  if (window.tmImage) return;
-  await carregarScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js');
-  await carregarScript('https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.5/dist/teachablemachine-image.min.js');
-}
-function guiaIAHTML() {
-  return `<ol><li>Acesse <b>teachablemachine.withgoogle.com</b> → <i>Projeto de imagens</i> → <i>Modelo de imagem padrão</i>.</li>
-  <li>Crie 2 classes: <b>Grão saudável</b> e <b>Grão mofado/ardido</b> (cerca de 30 fotos cada, por webcam ou arquivos).</li>
-  <li>Clique em <b>Treinar modelo</b>, depois em <b>Exportar modelo → Upload (nuvem)</b>.</li>
-  <li>Copie o link (<code>https://teachablemachine.withgoogle.com/models/XXXX/</code>) e cole no passo 1.</li></ol>
-  <p class="sub" style="margin-top:10px">O nome da classe precisa conter "mofado" ou "ardido" para o alerta funcionar.</p>`;
-}
-function thumb(src) {
-  try { const c = document.createElement('canvas'); c.width = c.height = 96; c.getContext('2d').drawImage(src, 0, 0, 96, 96); return c.toDataURL('image/jpeg', 0.7); } catch (e) { return ''; }
-}
-function checarAlertaIA(prev, origem) {
-  const ruim = prev.find(p => RUIM.test(p.className));
-  const acima = ruim && ruim.probability > SIM.limiarIA, agora = Date.now();
-  if (acima && (!ia.emAlerta || agora - ia.ultimoAlertaMs > 30000)) {
-    const d = new Date();
-    novoAlerta({ tipo: 'ia', titulo: `IA: grão mofado/ardido detectado (${Math.round(ruim.probability * 100)} %)`, detalhe: origem, silo: null, hora: `${pad(d.getHours())}:${pad(d.getMinutes())}`, data: textoData(d).slice(0, 10) });
-    ia.ultimoAlertaMs = agora;
-    notificar();
-  }
-  ia.emAlerta = !!acima;
-}
-async function classificarIA(fonte, manual, origem) {
-  if (!ia.modelo) return;
-  try {
-    const prev = await ia.modelo.predict(fonte);
-    ia.ultimo = prev;
-    const top = prev.slice().sort((a, b) => b.probability - a.probability)[0];
-    if (manual) {
-      const d = new Date();
-      ia.hist.unshift({ classe: top.className, p: Math.round(top.probability * 100), hora: `${pad(d.getHours())}:${pad(d.getMinutes())}`, origem, img: thumb(fonte) });
-      ia.hist = ia.hist.slice(0, 5);
-    }
-    checarAlertaIA(prev, origem);
-    if (VIA.vivo) { VIA.res(); VIA.hist(); }
-  } catch (e) { ia.msg = 'Erro ao classificar: ' + e.message; ia.erro = true; if (VIA.vivo) VIA.msg(); }
-}
-function pararWebcam() {
-  ia.rodando = false; clearTimeout(ia.timer);
-  if (ia.webcam) { try { ia.webcam.stop(); } catch (e) {} ia.webcam = null; }
-}
-function laçoWebcam() {
-  if (!ia.rodando || !ia.webcam) return;
-  ia.webcam.update();
-  classificarIA(ia.webcam.canvas, false, 'Webcam').finally(() => { ia.timer = setTimeout(laçoWebcam, 1000); });
-}
-
-const VIA = {
-  vivo: false,
-  titulo: () => 'Checagem por IA', sub: () => 'Classifique a qualidade do grão com um modelo de imagens',
-  acoes: () => ['pill', 'guia-ia', 'tema'],
-  mount(w) {
-    this.vivo = true;
-    w.innerHTML = `<div class="row2" style="grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)">
-      <div class="stack"><section class="card" id="ia-s1"></section><section class="card" id="ia-s2"></section></div>
-      <div class="stack"><section class="card" id="ia-res"></section><section class="card" id="ia-hist"></section></div></div>`;
-    onSeg(w, 'iaModo', v => { ia.modo = v; if (v === 'foto') pararWebcam(); this.s2(); });
-    w.addEventListener('click', e => {
-      const b = e.target.closest('button'); if (!b) return;
-      if (b.id === 'ia-carregar') this.carregar();
-      else if (b.id === 'ia-cam') this.camera();
-      else if (b.id === 'ia-cls' && ia.webcam) classificarIA(ia.webcam.canvas, true, 'Foto enviada pela webcam');
-      else if (b.id === 'ia-passos') abrirModal(`<div class="m-head"><span class="m-ic" style="background:var(--safe-bg);color:var(--safe)">${ic('scan-line')}</span><div><h2>Como treinar o modelo</h2></div></div>${guiaIAHTML()}<div class="m-btns"><button type="button" class="btn primary" data-fechar>Entendi</button></div>`);
-    });
-    w.addEventListener('change', e => { if (e.target.id === 'ia-file') this.arquivo(e.target.files[0]); });
-    this.s1(); this.s2(); this.res(); this.hist();
-  },
-  s1() {
-    $('ia-s1').innerHTML = `<div class="card-head"><div><h2>1. Modelo do Teachable Machine</h2><p class="sub">Cole o link do modelo exportado (Upload na nuvem)</p></div>
-      <span class="selo ${ia.modelo ? 'verde' : 'amarelo'}"><i></i>${ia.modelo ? `Modelo carregado · ${ia.modelo.getTotalClasses()} classes` : 'Nenhum modelo'}</span></div>
-      <div class="btns" style="margin-top:0"><input class="field" id="ia-url" style="flex:1 1 260px;width:auto" type="text" placeholder="https://teachablemachine.withgoogle.com/models/XXXX/" aria-label="URL do modelo" value="${esc(ia.url)}"><button type="button" class="btn dark" id="ia-carregar">Carregar modelo</button></div>
-      <p class="msg ${ia.erro ? 'erro' : ''}" id="ia-msg">${esc(ia.msg)}</p>`;
-    $('ia-url').addEventListener('input', e => ia.url = e.target.value);
-    icones();
-  },
-  msg() { const m = $('ia-msg'); if (m) { m.textContent = ia.msg; m.className = 'msg' + (ia.erro ? ' erro' : ''); } },
-  s2() {
-    const s = $('ia-s2');
-    if (!ia.modelo) {
-      s.innerHTML = `<div class="vazio-card"><span class="v-ic">${ic('scan-line')}</span><h2>Nenhum modelo carregado</h2><p>Treine no Teachable Machine, exporte e cole o link do modelo.</p><button type="button" class="btn primary" id="ia-passos">Ver passo a passo</button></div>`;
-      icones(); return;
-    }
-    const cam = ia.modo === 'webcam';
-    s.innerHTML = `<div class="card-head"><div><h2>2. Imagem do grão</h2><p class="sub">Use a webcam ou envie uma foto</p></div>${seg('iaModo', [['webcam', ic('camera') + 'Webcam'], ['foto', ic('image') + 'Enviar foto']], ia.modo)}</div>
-      <div class="ia-img" id="ia-visual"><span>A imagem aparece aqui</span></div>
-      <div class="btns">${cam
-        ? (ia.webcam ? `<button type="button" class="btn primary" id="ia-cls">${ic('scan-line')}Classificar agora</button><button type="button" class="btn" id="ia-cam">Desligar câmera</button><span class="msg push" style="margin:0">Classificação contínua a cada 1 s</span>`
-                     : `<button type="button" class="btn primary" id="ia-cam">${ic('camera')}Ligar câmera</button>`)
-        : `<label class="btn primary" for="ia-file">${ic('image')}Escolher foto</label><input id="ia-file" class="sr" type="file" accept="image/*">`}</div>`;
-    if (ia.webcam && cam) { const v = $('ia-visual'); v.innerHTML = '<span class="live"><i></i>Câmera ligada</span>'; v.appendChild(ia.webcam.canvas); }
-    icones();
-  },
-  async camera() {
-    if (ia.webcam) { pararWebcam(); this.s2(); return; }
-    try {
-      ia.webcam = new tmImage.Webcam(400, 300, true);
-      await ia.webcam.setup(); await ia.webcam.play();
-    } catch (e) {
-      ia.webcam = null; ia.erro = true;
-      ia.msg = 'Não consegui acessar a câmera. Verifique se há uma webcam, a permissão do navegador e se outro programa não a está usando. Você ainda pode enviar uma foto.';
-      this.msg(); return;
-    }
-    ia.erro = false; ia.msg = ''; ia.rodando = true; this.s2(); this.msg(); laçoWebcam();
-  },
-  arquivo(arq) {
-    if (!arq) return;
-    const img = new Image();
-    img.onload = () => { const v = $('ia-visual'); v.innerHTML = ''; v.appendChild(img); classificarIA(img, true, 'Foto enviada'); ia.msg = 'Foto classificada.'; ia.erro = false; this.msg(); };
-    img.onerror = () => { ia.msg = 'Não consegui abrir essa imagem. Tente outro arquivo (JPG ou PNG).'; ia.erro = true; this.msg(); };
-    img.src = URL.createObjectURL(arq);
-  },
-  async carregar() {
-    let url = ($('ia-url').value || '').trim(); ia.url = url;
-    if (!/^https:\/\/teachablemachine\.withgoogle\.com\/models\/[\w-]+\/?$/.test(url)) {
-      ia.erro = true; ia.msg = 'URL inválida. Use o formato https://teachablemachine.withgoogle.com/models/XXXX/ (link de upload do Teachable Machine).'; this.msg(); return;
-    }
-    if (!url.endsWith('/')) url += '/';
-    ia.erro = false; ia.msg = 'Carregando modelo…'; this.msg(); $('ia-carregar').disabled = true;
-    try {
-      await carregarBibliotecasIA();
-      ia.modelo = await tmImage.load(url + 'model.json', url + 'metadata.json');
-      ia.msg = ''; toast('ok', 'Modelo carregado', `${ia.modelo.getTotalClasses()} classes prontas para classificar.`);
-      this.s1(); this.s2();
-    } catch (e) {
-      ia.modelo = null; ia.erro = true;
-      ia.msg = 'Não consegui carregar o modelo. Confira se a URL está certa e se o modelo foi exportado como "Upload (nuvem)". Detalhe: ' + (e.message || e);
-      this.s1();
-    }
-  },
-  res() {
-    const r = $('ia-res'); if (!r) return;
-    if (!ia.ultimo) { r.innerHTML = `<h2>Resultado</h2><p class="sub" style="margin-top:6px">${ia.modelo ? 'Ligue a câmera ou envie uma foto para ver o resultado.' : 'Carregue um modelo para começar.'}</p>`; return; }
-    const ord = ia.ultimo.slice().sort((a, b) => b.probability - a.probability), top = ord[0], ruim = RUIM.test(top.className);
-    r.innerHTML = `<h2 style="margin-bottom:14px">Resultado</h2><div class="res-box ${ruim ? 'ruim' : ''}"><small>Classe mais provável</small><b>${esc(top.className)}</b><span>${Math.round(top.probability * 100)} % de confiança</span></div>
-      ${ia.ultimo.map(p => `<div class="prob ${RUIM.test(p.className) ? 'ruim' : ''}"><div class="p-top"><span>${esc(p.className)}</span><span class="num">${Math.round(p.probability * 100)} %</span></div><div class="p-bar"><i style="width:${p.probability * 100}%"></i></div></div>`).join('')}
-      <div class="nota-box">${ic('info')}<span>Se "mofado/ardido" passar de 70 %, um alerta aparece no painel.</span></div>`;
-    icones();
-  },
-  hist() {
-    const h = $('ia-hist'); if (!h) return;
-    h.innerHTML = `<h2 style="margin-bottom:6px">Últimas checagens</h2>${ia.hist.length ? ia.hist.map(x => `<div class="hist-ia">${x.img ? `<img alt="" src="${x.img}">` : ''}<div><b>${esc(x.classe)}</b><small>${x.hora} · ${esc(x.origem)}</small></div><span class="selo ${RUIM.test(x.classe) ? 'vermelho' : 'verde'}">${x.p} %</span></div>`).join('') : '<p class="vazio-txt">Nenhuma checagem ainda.</p>'}`;
-  },
-  update() {},
-  unmount() { this.vivo = false; pararWebcam(); }
-};
-
 // ===== Dados e CSV =====
 const VDados = {
-  titulo: () => 'Dados e CSV', sub: () => 'Exporte as leituras para a análise no Google Colab',
+  titulo: () => 'Dados e CSV', sub: () => 'Exporte as leituras em CSV e gere o relatório',
   acoes: () => ['pill', 'relatorio', 'csv', 'tema'],
   mount(w) {
     w.innerHTML = `<div class="stats" id="dd-stats"></div>
@@ -837,9 +681,6 @@ const VDados = {
             <div class="selwrap"><select class="field" id="dd-per" aria-label="Período"><option value="sessao">Toda a sessão</option><option value="1h">Última hora</option><option value="6h">Últimas 6 h</option><option value="24h">Últimas 24 h</option></select><span class="chev">${ic('chevron-down')}</span></div>
             <button type="button" class="btn primary block" id="dd-baixar" style="margin-top:16px">${ic('download')}Baixar CSV</button></section>
           <section class="card"><h2>Relatório em PDF</h2><p class="sub" style="margin:4px 0 14px">Resumo da situação, gráficos, alertas e recomendações em formato A4, pronto para imprimir ou salvar.</p><button type="button" class="btn primary block" data-act="relatorio">${ic('file-text')}Gerar relatório</button></section>
-          <section class="card"><h2>Analisar no Colab</h2><div class="passos" style="margin:14px 0">
-            <div class="passo"><span class="n">1</span><div><b>Baixe o CSV</b></div></div><div class="passo"><span class="n">2</span><div><b>Envie para o Google Drive</b></div></div><div class="passo"><span class="n">3</span><div><b>Abra o notebook e rode as células</b></div></div></div>
-            <a class="btn" href="colab/analise_graosafe.ipynb" target="_blank" rel="noopener">${ic('file-text')}Abrir guia do notebook</a></section>
         </div></div>`;
     $('dd-baixar').onclick = () => {
       const ids = [...w.querySelectorAll('[data-silo]:checked')].map(c => c.dataset.silo);
@@ -928,7 +769,7 @@ function abrirSheetMais() {
   const item = (href, i, t, d, act) => `<${act ? 'button type="button" data-act="' + act + '"' : 'a href="' + href + '"'} class="s-item"><span class="s-ic">${ic(i)}</span><span><b>${t}</b><small>${d}</small></span>${ic('chevron-right', 'chev')}</${act ? 'button' : 'a'}>`;
   const ov = document.createElement('div'); ov.className = 'sheet-ov';
   ov.innerHTML = `<div class="sheet" role="dialog" aria-label="Mais opções"><div class="grip"></div><h2>Mais opções</h2>
-    ${item('#/sensor', 'cpu', 'Sensor real', 'Importar leituras do Wokwi')}${item('#/dados', 'database', 'Dados e CSV', 'Exportar para o Colab')}${item('#/config', 'sliders-horizontal', 'Configurações', 'Limites, simulação e tema')}${item('', 'file-text', 'Relatório em PDF', 'Gerar e imprimir', 'relatorio')}${item('', 'flame', 'Simular falha', 'Testar o alerta de risco', 'falha')}</div>`;
+    ${item('#/sensor', 'cpu', 'Sensor real', 'Importar leituras do Wokwi')}${item('#/dados', 'database', 'Dados e CSV', 'Exportar leituras em CSV')}${item('#/config', 'sliders-horizontal', 'Configurações', 'Limites, simulação e tema')}${item('', 'file-text', 'Relatório em PDF', 'Gerar e imprimir', 'relatorio')}${item('', 'flame', 'Simular falha', 'Testar o alerta de risco', 'falha')}</div>`;
   document.body.appendChild(ov);
   icones();
   ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('a,button')) ov.remove(); });
@@ -937,7 +778,7 @@ function abrirSheetMais() {
 // ---------------------------------------------------------------------
 // CABEÇALHO, MENUS, ROTEADOR
 // ---------------------------------------------------------------------
-const VIEWS = { '': VGeral, silos: VSilos, silo: VSilo, alertas: VAlertas, sensor: VSensor, ia: VIA, dados: VDados, config: VConfig };
+const VIEWS = { '': VGeral, silos: VSilos, silo: VSilo, alertas: VAlertas, sensor: VSensor, dados: VDados, config: VConfig };
 let viewAtual = null, rotaAtual = '', argAtual = null;
 
 function acaoHTML(k) {
@@ -953,7 +794,6 @@ function acaoHTML(k) {
     case 'csv': return `<button type="button" class="btn desk" data-act="csv">${ic('download')}Baixar CSV</button>`;
     case 'lidos': return `<button type="button" class="btn desk" data-act="lidos">${ic('check')}Marcar como lidos</button>`;
     case 'guia-wokwi': return `<button type="button" class="btn desk" data-act="guia-wokwi">${ic('info')}Guia do Wokwi</button>`;
-    case 'guia-ia': return `<button type="button" class="btn desk" data-act="guia-ia">${ic('info')}Como treinar o modelo</button>`;
     case 'restaurar': return '<button type="button" class="btn desk" data-act="restaurar">Restaurar padrão</button>';
     case 'salvar': return `<button type="button" class="btn primary desk" data-act="salvar">${ic('check')}Salvar alterações</button>`;
     case 'tema': return `<button type="button" class="btn icon" data-act="tema" aria-label="${tema ? 'Mudar para tema claro' : 'Mudar para tema escuro'}" title="Alternar tema">${ic(tema ? 'sun' : 'moon')}</button>`;
@@ -989,9 +829,9 @@ function atualizarMenus() {
   const real = comSensor.length > 0;
   document.querySelectorAll('#seg-fonte button').forEach(x => x.classList.toggle('on', x.dataset.v === (real ? 'real' : 'sim')));
   $('fonte-txt').textContent = real ? `${comSensor.join(', ')} usando dados do ESP32 (Wokwi). Volte à simulação quando quiser.` : `Leituras simuladas a cada ${CFG.intervalo / 1000} s. Importe do Wokwi na aba Sensor real.`;
-  const ativo = { '': 0, silos: 1, silo: 1, alertas: 2, ia: 3, sensor: 4, dados: 4, config: 4 }[nomeRota];
-  $('bottom').innerHTML = [['#/', 'home', 'Início'], ['#/silos', 'database', 'Silos'], ['#/alertas', 'bell', 'Alertas'], ['#/ia', 'scan-line', 'IA']].map(([h, i, t], k) => `<a href="${h}" class="${ativo === k ? 'on' : ''}">${ic(i)}${t}</a>`).join('')
-    + `<button type="button" data-act="mais" class="${ativo === 4 ? 'on' : ''}">${ic('more-horizontal')}Mais</button>`;
+  const ativo = { '': 0, silos: 1, silo: 1, alertas: 2, sensor: 3, dados: 3, config: 3 }[nomeRota];
+  $('bottom').innerHTML = [['#/', 'home', 'Início'], ['#/silos', 'database', 'Silos'], ['#/alertas', 'bell', 'Alertas']].map(([h, i, t], k) => `<a href="${h}" class="${ativo === k ? 'on' : ''}">${ic(i)}${t}</a>`).join('')
+    + `<button type="button" data-act="mais" class="${ativo === 3 ? 'on' : ''}">${ic('more-horizontal')}Mais</button>`;
 }
 
 // Atualiza tudo que depende dos dados (chamado a cada leitura nova)
@@ -1041,7 +881,6 @@ const ACOES = {
       <li>Copie as linhas do <b>Serial Monitor</b> e cole aqui, em <b>Sensor real</b>.</li><li>Escolha o <b>silo que receberá os dados</b> e clique em <b>Importar</b>: ele passa a usar o sensor.</li></ol>
       <div class="m-btns"><button type="button" class="btn primary" data-fechar>Entendi</button></div>`);
   },
-  'guia-ia'() { abrirModal(`<div class="m-head"><span class="m-ic" style="background:var(--safe-bg);color:var(--safe)">${ic('scan-line')}</span><div><h2>Como treinar o modelo</h2></div></div>${guiaIAHTML()}<div class="m-btns"><button type="button" class="btn primary" data-fechar>Entendi</button></div>`); },
   salvar() { if (viewAtual === VConfig) VConfig.salvar(); },
   restaurar() { if (viewAtual === VConfig) VConfig.restaurar(); },
   tema() { aplicarTema(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'); },

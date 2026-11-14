@@ -1,6 +1,6 @@
 # 🌾 GraoSafe
 
-Monitoramento de armazenagem de grãos para **Rondonópolis (MT)**: sensor (IoT), painel web, análise de dados e IA para checar a qualidade do grão.
+Monitoramento de armazenagem de grãos para **Rondonópolis (MT)**: sensor (IoT), painel web com alertas e relatório em PDF.
 
 Projeto acadêmico — Computação Contemporânea e Inteligência Artificial (Módulo 5).
 
@@ -8,7 +8,7 @@ Projeto acadêmico — Computação Contemporânea e Inteligência Artificial (M
 
 Rondonópolis é um polo do agronegócio (soja e milho) e tem calor intenso. Pequenos e médios produtores e armazéns perdem grãos por **mofo e fungos** quando temperatura e umidade sobem dentro do depósito. Muitas vezes o problema só é percebido quando o grão já estragou.
 
-**Solução:** o GraoSafe mede temperatura e umidade, mostra o risco em verde/amarelo/vermelho, avisa quando muda de nível e usa uma IA de imagens para checar se o grão está mofado.
+**Solução:** o GraoSafe mede temperatura e umidade, mostra o risco em verde/amarelo/vermelho, avisa quando muda de nível e gera um relatório pronto para imprimir.
 
 > Os limites de risco são **simplificados, para fins didáticos**, e não uma norma técnica.
 
@@ -23,12 +23,11 @@ Rondonópolis é um polo do agronegócio (soja e milho) e tem calor intenso. Peq
 ```
 index.html                       painel web (estrutura da página)
 styles.css                       visual do painel (cores, tema claro/escuro, celular)
-app.js                           lógica: simulação, alertas, telas, Wokwi e IA
+app.js                           lógica: simulação, alertas, telas e Wokwi
 relatorio.js                     gerador do relatório em PDF (A4, 2 páginas)
 assets/icone.svg                 logo e favicon
 wokwi/                           circuito e código do ESP32 + DHT22
-colab/analise_graosafe.ipynb     análise exploratória + regressão
-dados/exemplo_graosafe.csv       CSV de exemplo (1500 leituras)
+dados/exemplo_graosafe.csv       CSV de exemplo (1500 leituras, mesmo formato do painel)
 dados/gerar_csv.py               script que gerou o CSV
 relatorio/roteiro_relatorio.md   roteiro do relatório
 ```
@@ -37,7 +36,7 @@ relatorio/roteiro_relatorio.md   roteiro do relatório
 
 Dê duplo clique em **index.html** (mantenha `styles.css`, `app.js` e a pasta `assets/` ao lado dele). Não precisa instalar nada nem ter servidor; só internet, para carregar o gráfico, os ícones e a fonte.
 
-O painel tem várias telas, com menu lateral no computador e barra inferior no celular: Visão geral, Silos, Alertas, Sensor real, Checagem por IA, Dados e CSV e Configurações. Os limites de risco e o tema escuro podem ser mudados em **Configurações**.
+O painel tem várias telas, com menu lateral no computador e barra inferior no celular: Visão geral, Silos, Alertas, Sensor real, Dados e CSV e Configurações. Os limites de risco e o tema escuro podem ser mudados em **Configurações**.
 
 **Relatório em PDF:** em **Dados e CSV**, clique em **Gerar relatório**. Abre uma nova aba com o relatório (cabeçalho com logo, situação geral, estatísticas por silo, alertas, gráficos, recomendações e metodologia). Clique em **Imprimir / Salvar PDF** e escolha *Salvar como PDF*. Se nada abrir, permita pop-ups para o site.
 
@@ -71,22 +70,6 @@ O painel tem várias telas, com menu lateral no computador e barra inferior no c
 
 Ligações: DHT22 no GPIO 15 (3V3 e GND); LEDs verde/amarelo/vermelho nos GPIO 25/26/27, cada um com resistor de 220 Ω.
 
-## Análise no Google Colab
-
-1. Abra colab.research.google.com → **Arquivo → Fazer upload de notebook** → `colab/analise_graosafe.ipynb`.
-2. Na célula de carregamento, mude `USAR_UPLOAD = True` (envia o CSV) ou preencha `LINK_DRIVE`.
-3. Execute tudo (**Ambiente de execução → Executar tudo**).
-
-## IA com Teachable Machine
-
-1. Acesse teachablemachine.withgoogle.com → **Projeto de imagens** → **Modelo de imagem padrão**.
-2. Crie 2 classes: **Grão saudável** e **Grão mofado/ardido** (cerca de 30 fotos cada, por webcam ou arquivos).
-3. Clique em **Treinar modelo** e depois em **Exportar modelo → Upload (nuvem) → Fazer upload do meu modelo**.
-4. Copie o link (`https://teachablemachine.withgoogle.com/models/XXXX/`).
-5. No painel, na seção **Checagem do grão (IA)**, cole o link, clique em **Carregar modelo** e use a webcam ou envie uma foto.
-
-Se a probabilidade da classe "mofado/ardido" passar de 70 %, o painel mostra um alerta. O nome da classe precisa conter "mofado" ou "ardido" para a detecção funcionar.
-
 ## Organização da pasta no Google Drive
 
 Crie uma pasta compartilhada com a dupla (e o professor), por exemplo:
@@ -95,8 +78,7 @@ Crie uma pasta compartilhada com a dupla (e o professor), por exemplo:
 GraoSafe - Nome1 e Nome2/
 ├── 1_Nuvem/      prints do Drive e do compartilhamento
 ├── 2_IoT/        sketch.ino, diagram.json, libraries.txt, prints do Wokwi
-├── 3_Dados/      exemplo_graosafe.csv e analise_graosafe.ipynb
-├── 4_IA/         prints e link do modelo do Teachable Machine
+├── 3_Dados/      exemplo_graosafe.csv e CSVs baixados do painel
 └── Relatorio/    relatório final (PDF) e link do painel no GitHub Pages
 ```
 

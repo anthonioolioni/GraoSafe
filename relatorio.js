@@ -34,7 +34,6 @@ ul.pts{margin:0;padding-left:16px}ul.pts li{margin:3px 0}
 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .card{border:1px solid #DDE6E0;border-radius:9px;padding:9px 10px;break-inside:avoid}
 .card .nome{display:flex;justify-content:space-between;align-items:flex-start;gap:6px}.card .nome b{font-size:11pt}.card .nome small{display:block;color:#5B6B63;font-size:7.5pt}
-.s{display:inline-block;padding:1px 8px;border-radius:999px;font-size:7.5pt;font-weight:700;white-space:nowrap}.s.verde{background:#E6F5EB;color:#15803D}.s.amarelo{background:#FEF3C7;color:#92400E}.s.vermelho{background:#FEE2E2;color:#B91C1C}.s.ia{background:#E3ECFD;color:#1D4ED8}
 .agora{margin:7px 0 6px;font-size:14pt;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}.agora small{font-size:8pt;color:#5B6B63;font-weight:500;letter-spacing:0}
 table{width:100%;border-collapse:collapse;font-size:8.3pt}
 th{text-align:left;color:#5B6B63;font-weight:600;font-size:7.3pt;padding:2px 0 3px;border-bottom:1px solid #DDE6E0}td{padding:3px 0;border-bottom:1px solid #F0F3F1;font-variant-numeric:tabular-nums}
@@ -44,7 +43,6 @@ td.r,th.r{text-align:right}
 .tab-al th,.tab-al td{padding:4px 6px}.tab-al td{border-bottom:1px solid #EEF1EE}
 .graf{break-inside:avoid;margin-bottom:6px}.graf .gt{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}.graf .gt b{font-size:10pt}.graf img{width:100%;display:block;border:1px solid #E5EAE6;border-radius:6px}
 .lgd{display:flex;gap:14px;font-size:7.8pt;color:#34443D;margin:0 0 6px}.lgd i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
-.ia-l{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.ia-l div{border:1px solid #DDE6E0;border-radius:8px;padding:6px;font-size:7.8pt;break-inside:avoid}.ia-l img{width:100%;height:10mm;object-fit:cover;border-radius:5px;margin-bottom:4px}
 .duas{display:grid;grid-template-columns:1.1fr 1fr;gap:12px}
 .rec{display:flex;gap:8px;margin:5px 0}.rec .n{width:18px;height:18px;border-radius:50%;background:#E6F5EB;color:#15803D;font-weight:700;font-size:8pt;display:grid;place-items:center;flex:none}.rec b{display:block}.rec span{color:#5B6B63;font-size:8.5pt}
 .nota{margin-top:6px;padding:7px 10px;border-radius:7px;background:#F3F5F2;color:#34443D;font-size:8pt}
@@ -119,7 +117,6 @@ function relatorioHTML() {
   pontos.push(maisFora.foraSeguro > 0 ? `O <b>${maisFora.s.nome}</b> passou <b>${fmt(maisFora.foraSeguro)} %</b> do período fora da faixa segura (atenção ou perigo).` : 'Nenhum silo saiu da faixa segura durante o período.');
   const fa = falhaAtiva();
   if (fa.length) pontos.push(`Há uma <b>falha de ventilação simulada</b> em andamento no ${fa.map(s => s.nome).join(', ')}.`);
-  if (ia.hist.length) { const ruins = ia.hist.filter(h => RUIM.test(h.classe)).length; pontos.push(`Foram feitas <b>${ia.hist.length}</b> checagens por IA; <b>${ruins}</b> indicaram grão mofado/ardido.`); }
   pontos.push(`Foram gerados <b>${estado.alertas.length}</b> alertas (${alertasPerigo} de perigo) no período.`);
 
   const cartao = e => `<div class="card"><div class="nome"><div><b>${e.s.nome}</b><small>${e.s.cultura} · ${esc(e.fonte)}</small></div><span class="s ${e.atual.risco}">${ROTULO[e.atual.risco]}</span></div>
@@ -131,15 +128,14 @@ function relatorioHTML() {
     <div class="leg"><span>Seguro ${Math.round(e.pct.verde)} %</span><span>Atenção ${Math.round(e.pct.amarelo)} %</span><span>Perigo ${Math.round(e.pct.vermelho)} %</span></div>
     <div class="leg" style="margin-top:3px">${e.n} leituras</div></div>`;
 
-  const tipoRot = { perigo: ['vermelho', 'Perigo'], atencao: ['amarelo', 'Atenção'], normal: ['verde', 'Normalizado'], ia: ['ia', 'IA'] };
+  const tipoRot = { perigo: ['vermelho', 'Perigo'], atencao: ['amarelo', 'Atenção'], normal: ['verde', 'Normalizado'] };
   const linhasAlerta = estado.alertas.slice(0, 9).map(a => {
     const [c, r] = tipoRot[a.tipo];
-    return `<tr><td>${esc(a.data.slice(8, 10) + '/' + a.data.slice(5, 7))} ${a.hora}</td><td>${a.silo ? siloPorId(a.silo).nome : 'IA'}</td><td><span class="s ${c}">${r}</span></td><td>${esc(a.titulo)}</td><td>${esc(a.detalhe)}</td></tr>`;
+    return `<tr><td>${esc(a.data.slice(8, 10) + '/' + a.data.slice(5, 7))} ${a.hora}</td><td>${a.silo ? siloPorId(a.silo).nome : '—'}</td><td><span class="s ${c}">${r}</span></td><td>${esc(a.titulo)}</td><td>${esc(a.detalhe)}</td></tr>`;
   }).join('');
   const maisAlertas = estado.alertas.length > 9 ? `<p class="vazio" style="margin:4px 0 0">Mostrando os 9 alertas mais recentes de ${estado.alertas.length}.</p>` : '';
 
   const graficos = est.map(e => `<div class="graf"><div class="gt"><b>${e.s.nome} — ${e.s.cultura}</b><span class="s ${e.atual.risco}">${ROTULO[e.atual.risco]}</span></div><img alt="Gráfico de ${e.s.nome}" src="${graficoRelatorio(e.lista.slice(-contaFaixa('24h')))}"></div>`).join('');
-  const iaHTML = ia.hist.length ? `<h2>Checagens por IA (Teachable Machine)</h2><div class="ia-l">${ia.hist.map(h => `<div>${h.img ? `<img alt="" src="${h.img}">` : ''}<b>${esc(h.classe)}</b><br>${h.p} % · ${h.hora}<br><span style="color:#6B7A73">${esc(h.origem)}</span></div>`).join('')}</div>` : '';
 
   const recs = RECS[piorRisco].map(([, t, d], i) => `<div class="rec"><span class="n">${i + 1}</span><div><b>${t}</b><span>${d}</span></div></div>`).join('');
   const fontes = SILOS.map(s => `${s.nome}: ${live.ativo[s.id] ? 'sensor ESP32 (Wokwi)' : 'simulação do painel'}`).join(' · ');
@@ -174,7 +170,6 @@ function relatorioHTML() {
   <h2>Evolução de temperatura e umidade (últimas 24 h simuladas)</h2>
   <div class="lgd"><span><i style="background:#EA6A12"></i>Temperatura (°C)</span><span><i style="background:#2563EB"></i>Umidade (% UR)</span><span><i style="background:none;border-top:2px dashed #D97706;height:0;border-radius:0;width:14px;vertical-align:3px"></i>Limites de temperatura</span></div>
   ${graficos}
-  ${iaHTML}
   <div class="duas">
     <div><h2>Recomendações${piorRisco === 'verde' ? '' : ' — ' + pior.s.nome}</h2>${recs}</div>
     <div><h2>Limites de risco usados</h2><table><thead><tr><th>Nível</th><th>Temperatura</th><th>Umidade</th></tr></thead><tbody>
